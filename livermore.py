@@ -9,10 +9,11 @@ from datetime import date
 
 import matplotlib.pyplot as plt
 from pandas.io.data import DataReader
-from pandas import HDFStore, Series
+from pandas import HDFStore, Series, DataFrame
 from numpy import ma, logical_and, mean
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY
 
+#--------------------------------------------------------------------------------
 # http://stockcharts.com/help/doku.php?id=chart_school:technical_indicators:average_true_range_a
 class ATRCalculator(object):
     def __init__(self, atr_period):
@@ -42,6 +43,7 @@ class ATRCalculator(object):
 
         return self.atr
 
+#--------------------------------------------------------------------------------
 # cannot be redefined to other value
 BAND_UPWARD        = 6
 BAND_NATURAL_RALLY = 5
@@ -54,13 +56,10 @@ TREND_UPWARD    = 1
 TREND_DOWNWARD  = 2
 class LivermoreMarketKey(object):
     def __init__(self):
+        self.trend = None
         # support and resistance line
         self.upward_resistance = None
-        self.rally_resistance = None
-        self.react_support = None
         self.downward_support = None
-
-        self.trend = None
 
     def __call__(self, tick):
         current_price = tick["Close"]
@@ -83,52 +82,59 @@ class LivermoreMarketKey(object):
 
             if level >= BAND_UPWARD:
                 level = BAND_UPWARD
-                #if self.upward_resistance < current_price:
-                #    self.upward_resistance = current_price
                 self.upward_resistance = current_price
                 self.trend = TREND_UPWARD
 
             if level <= BAND_DOWNWARD:
                 level = BAND_DOWNWARD
-                #if (self.downward_support is None) or (self.downward_support > current_price):
-                #    self.downward_support = current_price
                 self.downward_support = current_price
                 self.trend = TREND_DOWNWARD
 
             self.level = level
             self.band_width = tick["ATR"]
 
-            #print "%s \n %s" % (tick, repr(self.__dict__))
             return self.level
-
         except Exception, e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print exc_type, exc_value
-            #traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
-            print repr(traceback.extract_tb(exc_traceback))
+            gLogger.debug("%s :: %s", exc_type, exc_value)
+            gLogger.debug(traceback.extract_tb(exc_traceback))
 
-        print "not here! stk=%s tick=%s" % (repr(self.__dict__), repr(tick))
+        gLogger.debug("NOT_REACHED! stk=%s tick=%s", repr(self.__dict__), repr(tick))
         sys.exit(0)
 
+#--------------------------------------------------------------------------------
 class Stock(object):
-    def __init__(self, name):
+    def __init__(self, name, freq="D", atr_period=15):
         self.name = name
+        self.atr_period = atr_period # default 3 weeks
+        self.freq = "D" # D : daily, W : weekly
 
     def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today()):
         store_name = "{}.hd5".format(self.name)
 
         if use_cache and exists(store_name):
             self.store = HDFStore(store_name)
-            self.history = self.store.get("history")
-            return
+            self.history_daily = self.store.get("history")
+        else:
+            self.history_daily = DataReader(self.name, "yahoo", start, end)
+            self.store = HDFStore(store_name)
+            self.store.put("history", self.history_daily)
+            self.store.flush()
 
-        self.history = DataReader(self.name, "yahoo", start, end)
-        self.store = HDFStore(store_name)
-        self.store.put("history", self.history)
-        self.store.flush()
+        self.history = self.history_daily
 
-    def process_atr(self, atr_period=14):
-        calculator = ATRCalculator(atr_period)
+        if self.freq == "W":
+            self.atr_period /= 5 # 3 weeks
+            self.history_weekly = DataFrame(self.history_daily["Close"].resample("W-FRI", how="last"), columns=("Close",))
+            self.history_weekly["Open"] = self.history_daily["Open"].resample("W-FRI", how="first")
+            self.history_weekly["High"] = self.history_daily["High"].resample("W-FRI", how="max")
+            self.history_weekly["Low"] = self.history_daily["Low"].resample("W-FRI", how="min")
+            # e.g. the spring festival week
+            self.history_weekly.fillna(method="ffill", inplace=True)
+            self.history = self.history_weekly
+
+    def process_atr(self):
+        calculator = ATRCalculator(self.atr_period)
         self.history["ATR"] = self.history.apply(calculator, axis=1)
 
     def process_livermore_market_key(self):
@@ -137,42 +143,87 @@ class Stock(object):
 
     def plot_livermore_trend(self):
         # http://matplotlib.org/examples/pylab_examples/color_by_yvalue.html
-
-        close = self.history["Close"]
-        atr = self.history["ATR"]
-        level = self.history["level"]
-        up_trend = ma.masked_where(level < BAND_UPWARD, close)
-        dn_trend = ma.masked_where(level > BAND_DOWNWARD, close)
-        between =  ma.masked_where((level ==  BAND_DOWNWARD) | (level == BAND_UPWARD), close)
-
         mondays = WeekdayLocator(MONDAY)
-        months  = MonthLocator(range(1,13), bymonthday=1, interval=1) # every month
-        monthsFmt = DateFormatter("%b '%y")
+        months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
+        #monthsFmt = DateFormatter("%b '%y")
+        monthsFmt = DateFormatter("%m/%y")
         ax = plt.gca()
         ax.xaxis.set_major_locator(months)
         ax.xaxis.set_major_formatter(monthsFmt)
         ax.xaxis.set_minor_locator(mondays)
         ax.grid(True)
 
-        plt.plot(self.history.index, up_trend, "green", self.history.index, dn_trend, "red", self.history.index, between, "blue")
+        # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
+        style_dict = {
+            BAND_DOWNWARD       : "rv",
+            BAND_NATURAL_REACT  : "m<",
+            BAND_SECOND_REACT   : "m*",
+            BAND_SECOND_RALLY   : "c*",
+            BAND_NATURAL_RALLY  : "c>",
+            BAND_UPWARD         : "g^",
+        }
+
+        close = self.history["Close"]
+        atr = self.history["ATR"]
+        level = self.history["level"]
+
+        for band in range(BAND_DOWNWARD, BAND_UPWARD + 1):
+            mask = ma.make_mask(self.history.index)
+            mask = ma.masked_where(level == band, mask)
+            chosen = ma.masked_where(~mask.mask, close)
+            if chosen.any():
+                plt.plot(self.history.index, chosen, style_dict[band], label="%s" % band)
+
+        # upward trend
+        mask = ma.make_mask(self.history.index)
+        mask = ma.masked_where(level >= BAND_SECOND_RALLY, mask)
+        chosen = ma.masked_where(~mask.mask, close)
+        if chosen.any():
+            plt.plot(self.history.index, chosen, "g-")
+
+        # downward trend
+        mask = ma.make_mask(self.history.index)
+        mask = ma.masked_where(level <= BAND_SECOND_REACT, mask)
+        chosen = ma.masked_where(~mask.mask, close)
+        if chosen.any():
+            plt.plot(self.history.index, chosen, "r-")
+
         plt.show()
 
 def main():
-    stk = Stock("000001.SS")
-    #stk.retrieve_history(use_cache=False, start="1/1/2007", end="1/1/2011")
-    stk = Stock("000826.SZ")
-    stk = Stock("300027.SZ")
-    #stk = Stock("QQQ")
-    #stk = Stock("VMW")
+    stk = Stock("000001.SS", freq="W")
+    #stk = Stock("002024.SZ")
+    #stk = Stock("000826.SZ")
+    #stk.retrieve_history(use_cache=False, start="7/16/2005", freq="W")
+    #stk.retrieve_history(use_cache=False, start="2/15/2007", freq="W")
+
+    #stk = Stock("300052.SZ")
+    #stk = Stock("300027.SZ")
+
     #stk = Stock("GOOG")
-    stk.retrieve_history(use_cache=False, start="4/19/2009")
-    #stk.histkory = stk.histkory.loc["5/30/2008":]
+    #stk = Stock("AAPL")
+    #stk = Stock("AMZN")
+
+    #stk = Stock("YELP")
+    #stk = Stock("TWTR")
+
+    #stk = Stock("VMW")
+    #stk = Stock("CTRX")
+
+    #stk = Stock("EDU")
+    #stk = Stock("YOKU")
+
+    # QQQ is used to verify the correction of ATR calculation
+    #stk = Stock("QQQ")
+
+    stk.retrieve_history(use_cache=False, start="7/1/2013")
+
     stk.process_atr()
     stk.process_livermore_market_key()
     stk.plot_livermore_trend()
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logging.basicConfig(level=logging.DEBUG, format="%(message)s")
     gLogger = logging.getLogger()
     stdoutStreamHandler = logging.StreamHandler(stream=sys.stdout)
 
