@@ -92,7 +92,8 @@ class LivermoreMarketKey(object):
 
             self.level = level
             self.band_width = tick["ATR"]
-
+            #gLogger.debug(type(tick))
+            #sys.exit(0)
             return self.level
         except Exception, e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -102,12 +103,91 @@ class LivermoreMarketKey(object):
         gLogger.debug("NOT_REACHED! stk=%s tick=%s", repr(self.__dict__), repr(tick))
         sys.exit(0)
 
+class LMKBacktest(object):
+    def __init__(self):
+        self.fund = 10000.0
+        self.cash = self.fund
+        self.amount = 0
+        self.commission = 9.9
+        self.price = None
+        self.buy_price = None
+        self.sell_price = None
+        self.try_first_hand = True
+        self.last_value_rate = None
+
+    def __call__(self, tick):
+        self.price = tick["Close"]
+        try:
+            #if int(tick["level"]) == BAND_UPWARD:
+            #if int(tick["level"]) >= BAND_SECOND_RALLY:
+            if int(tick["level"]) >= BAND_SECOND_REACT:
+                #buy
+                amount = int(self.cash / self.price)
+                if amount > 0:
+                    if self.try_first_hand:
+                        #if tick["level"] < BAND_UPWARD:
+                        amount /= 2
+                        #else: # wait for the second upward signal
+                        #    amount = 0
+                    else:
+                        if tick["level"] < BAND_UPWARD:
+                            amount = 0 # second signal should upward
+
+                    self.try_first_hand = False
+
+                    if amount > 0:
+                        self.amount += amount
+                        self.cash -= (amount * self.price + self.commission)
+                        self.buy_price = self.price
+                        value_rate = self.value_rate()
+                        gLogger.debug("%s: BUY  %d @%.2f = %.2f %s" % (
+                                      tick.name, amount, self.buy_price, value_rate,
+                                      "PROFIT" if value_rate >= self.last_value_rate else "LOSS"))
+                        self.last_value_rate = value_rate
+                        #raise Exception("BUY")
+
+            self.first_skipped = True
+
+            #if int(tick["level"]) == BAND_DOWNWARD:
+            if int(tick["level"]) <= BAND_NATURAL_REACT:
+                self.first_skipped = True
+                self.try_first_hand = True
+                amount = self.amount
+                cut_loss = False
+                if amount > 0:
+                    if self.price <= self.buy_price / (1 + .05): # cut loss
+                        self.sell_price = self.buy_price / (1 + .05)
+                        cut_loss = True
+                    else:
+                        self.sell_price = self.price
+
+                    if tick["level"] > BAND_DOWNWARD and not cut_loss:
+                        amount /= 2
+
+                    self.cash += (amount * self.price - self.commission)
+                    self.amount -= amount
+                    value_rate = self.value_rate()
+                    gLogger.debug("%s: SELL %d @%.2f = %.2f %s %s" % (
+                                  tick.name, amount, self.sell_price, value_rate,
+                                  "CUT_LOSS" if cut_loss else "",
+                                  "PROFIT" if value_rate >= self.last_value_rate else "LOSS"))
+                    self.last_value_rate = value_rate
+
+            return self.value_rate()
+        except Exception, e:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            gLogger.debug("%s :: %s", exc_type, exc_value)
+            gLogger.debug(traceback.extract_tb(exc_traceback))
+
+    def value_rate(self):
+        return (self.amount * self.price + self.cash) / self.fund
+
 #--------------------------------------------------------------------------------
 class Stock(object):
-    def __init__(self, name, freq="D", atr_period=15):
+    def __init__(self, name, freq="W", atr_period=15):
         self.name = name
         self.atr_period = atr_period # default 3 weeks
-        self.freq = "D" # D : daily, W : weekly
+        self.freq = freq # D : daily, W : weekly
 
     def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today()):
         store_name = "{}.hd5".format(self.name)
@@ -141,16 +221,24 @@ class Stock(object):
         lmk = LivermoreMarketKey()
         self.history["level"] = self.history.apply(lmk, axis=1)
 
+    def process_backtest(self):
+        backtest = LMKBacktest()
+        self.history["value"] = self.history.apply(backtest, axis=1)
+        gLogger.info("profit=%.2f%%", (backtest.value_rate() - 1) * 100)
+
     def plot_livermore_trend(self):
         # http://matplotlib.org/examples/pylab_examples/color_by_yvalue.html
         mondays = WeekdayLocator(MONDAY)
         months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
         #monthsFmt = DateFormatter("%b '%y")
-        monthsFmt = DateFormatter("%m/%y")
+        #monthsFmt = DateFormatter("%b")
+        monthsFmt = DateFormatter("%y%m")
+        dayFmt = DateFormatter("%d")
         ax = plt.gca()
         ax.xaxis.set_major_locator(months)
         ax.xaxis.set_major_formatter(monthsFmt)
         ax.xaxis.set_minor_locator(mondays)
+        #ax.xaxis.set_minor_formatter(dayFmt)
         ax.grid(True)
 
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
@@ -176,7 +264,8 @@ class Stock(object):
 
         # upward trend
         mask = ma.make_mask(self.history.index)
-        mask = ma.masked_where(level >= BAND_SECOND_RALLY, mask)
+        #mask = ma.masked_where(level >= BAND_SECOND_RALLY, mask)
+        mask = ma.masked_where(level >= BAND_SECOND_REACT, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(self.history.index, chosen, "g-")
@@ -191,14 +280,15 @@ class Stock(object):
         plt.show()
 
 def main():
-    stk = Stock("000001.SS", freq="W")
+    #stk = Stock("000001.SS", freq="W")
     #stk = Stock("002024.SZ")
     #stk = Stock("000826.SZ")
     #stk.retrieve_history(use_cache=False, start="7/16/2005", freq="W")
     #stk.retrieve_history(use_cache=False, start="2/15/2007", freq="W")
 
-    #stk = Stock("300052.SZ")
-    #stk = Stock("300027.SZ")
+    #stk = Stock("600085.SS") # Tong Ren Tang
+    #stk = Stock("300052.SZ") # Zhong Qing Bao
+    #stk = Stock("300027.SZ") # Huayi Brothers Media Corp
 
     #stk = Stock("GOOG")
     #stk = Stock("AAPL")
@@ -206,20 +296,24 @@ def main():
 
     #stk = Stock("YELP")
     #stk = Stock("TWTR")
+    #stk = Stock("TSLA", freq="D")
+    #stk = Stock("TSLA", freq="W") # ***
 
-    #stk = Stock("VMW")
-    #stk = Stock("CTRX")
+    #stk = Stock("VMW", freq="W")
+    #stk = Stock("CTXS", freq="D")
+    #stk = Stock("ORCL", freq="D")
 
-    #stk = Stock("EDU")
+    stk = Stock("EDU") # ***
     #stk = Stock("YOKU")
 
     # QQQ is used to verify the correction of ATR calculation
     #stk = Stock("QQQ")
-
-    stk.retrieve_history(use_cache=False, start="7/1/2013")
+    #stk.retrieve_history(use_cache=False, start="12/1/2013")
+    stk.retrieve_history(use_cache=False, start="6/1/2013")
 
     stk.process_atr()
     stk.process_livermore_market_key()
+    stk.process_backtest()
     stk.plot_livermore_trend()
 
 if __name__ == "__main__":
