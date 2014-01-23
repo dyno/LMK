@@ -4,7 +4,7 @@ import traceback
 import sys
 import math
 import logging
-from os.path import exists
+from os.path import exists, join
 from datetime import date
 
 import matplotlib.pyplot as plt
@@ -29,7 +29,7 @@ class Stock(object):
         self.freq = "D"
 
     def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today()):
-        store_name = "{}.hd5".format(self.name)
+        store_name = join("cache", "%s.hd5" % self.name)
 
         if use_cache and exists(store_name):
             self.store = HDFStore(store_name)
