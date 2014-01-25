@@ -17,7 +17,7 @@ import matplotlib.ticker as ticker
 
 from atr import ATRCalculator as ATRC
 from lmk import LivermoreMarketKeyCalculator as LMKC, LivermoreMaketKeyBacktestCalculator as LMKBC
-from lmk import BAND_DNWARD, BAND_NAT_RALLY, BAND_SEC_RALLY, BAND_SEC_REACT, BAND_NAT_REACT, BAND_UPWARD
+from lmk import BAND_DNWARD, BAND_NAT_REACT, BAND_SEC_REACT, BAND_SEC_RALLY, BAND_NAT_RALLY, BAND_UPWARD
 from lmk import TREND_DNWARD, TREND_UPWARD
 
 import log
@@ -27,8 +27,9 @@ class Stock(object):
     def __init__(self, name):
         self.name = name
         self.freq = "D"
+        self.atr_factor = 2
 
-    def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today()):
+    def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today(), no_volume=False):
         store_name = join("cache", "%s.hd5" % self.name)
 
         if use_cache and exists(store_name):
@@ -39,7 +40,9 @@ class Stock(object):
             #self.history_daily = DataReader(self.name, "google", start, end)
             self.store = HDFStore(store_name)
             self.store.put("history", self.history_daily)
-            self.history_daily = self.history_daily[self.history_daily["Volume"] != 0]
+            if not no_volume: # index like 000001.SS has no volume data
+                # suspension - no trading event
+                self.history_daily = self.history_daily[self.history_daily["Volume"] != 0]
             self.store.flush()
 
         self.history = self.history_daily
@@ -68,9 +71,11 @@ class Stock(object):
         calculator = ATRC(atr_period)
         self.history["ATR"] = self.history.apply(calculator, axis=1)
 
-    def process_livermore_market_key(self):
-        calculator = LMKC()
-        self.history = pandas.merge(self.history, self.history.apply(calculator, axis=1),
+    def process_livermore_market_key(self, atr_factor):
+        self.atr_factor = atr_factor
+        calculator = LMKC(atr_factor=atr_factor)
+        lmk = self.history.apply(calculator, axis=1)
+        self.history = pandas.merge(self.history, lmk,
                                     left_index=True, right_index=True, sort=False)
 
     def process_backtest(self, fund=10000, commission=9.9):
@@ -106,19 +111,18 @@ class Stock(object):
         self.ax = ax
 
     def plot_livermore_trend(self, line="-", alpha=1, show_band=False, band_width=1):
-
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
-            BAND_DNWARD       : "rv",
-            BAND_NAT_RALLY  : "m<",
-            BAND_SEC_RALLY   : "m*",
-            BAND_SEC_REACT   : "c*",
-            BAND_NAT_REACT  : "c>",
-            BAND_UPWARD         : "g^",
+            BAND_DNWARD     : "rv",
+            BAND_NAT_REACT  : "m<",
+            BAND_SEC_REACT  : "m*",
+            BAND_SEC_RALLY  : "c*",
+            BAND_NAT_RALLY  : "c>",
+            BAND_UPWARD     : "g^",
         }
 
         close = self.history["Close"]
-        atr = self.history["ATR"]
+        atr = self.history["ATR"] * self.atr_factor
         level = self.history["level"]
         trend = self.history["trend"]
         resistance = self.history["resistance"]
@@ -133,21 +137,21 @@ class Stock(object):
 
         # upward trend
         mask = ma.make_mask(self.history.index)
-        #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
         mask = ma.masked_where(level >= BAND_SEC_RALLY, mask)
+        #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(self.history.index, chosen, "g%s" % line, alpha=alpha, label="^:%s" % self.freq.lower())
 
         # downward trend
         mask = ma.make_mask(self.history.index)
-        mask = ma.masked_where(level <= BAND_SEC_RALLY, mask)
+        mask = ma.masked_where(level <= BAND_SEC_REACT, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(self.history.index, chosen, "r%s" % line, alpha=alpha, label="v:%s" % self.freq.lower())
 
         if show_band:
-            _band = atr/6.0
+            _band = atr / 6.0
             for _trend in (TREND_UPWARD, TREND_DNWARD):
                 mask = ma.make_mask(self.history.index)
                 mask = ma.masked_where(trend == _trend, mask)
