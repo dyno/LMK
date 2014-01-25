@@ -71,7 +71,7 @@ class Stock(object):
         calculator = ATRC(atr_period)
         self.history["ATR"] = self.history.apply(calculator, axis=1)
 
-    def process_livermore_market_key(self, atr_factor):
+    def process_livermore_market_key(self, atr_factor=2):
         self.atr_factor = atr_factor
         calculator = LMKC(atr_factor=atr_factor)
         lmk = self.history.apply(calculator, axis=1)
