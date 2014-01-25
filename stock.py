@@ -17,8 +17,8 @@ import matplotlib.ticker as ticker
 
 from atr import ATRCalculator as ATRC
 from lmk import LivermoreMarketKeyCalculator as LMKC, LivermoreMaketKeyBacktestCalculator as LMKBC
-from lmk import BAND_DOWNWARD, BAND_NATURAL_REACT, BAND_SECOND_REACT, BAND_SECOND_RALLY, BAND_NATURAL_RALLY, BAND_UPWARD
-from lmk import TREND_DOWNWARD, TREND_UPWARD
+from lmk import BAND_DNWARD, BAND_NAT_RALLY, BAND_SEC_RALLY, BAND_SEC_REACT, BAND_NAT_REACT, BAND_UPWARD
+from lmk import TREND_DNWARD, TREND_UPWARD
 
 import log
 
@@ -55,6 +55,7 @@ class Stock(object):
         history_resampled["Open"] = self.history_daily["Open"].resample(freq, how="first")
         history_resampled["High"] = self.history_daily["High"].resample(freq, how="max")
         history_resampled["Low"] = self.history_daily["Low"].resample(freq, how="min")
+        history_resampled["ATR"] = self.history_daily["ATR"].resample(freq, how="last")
         # e.g. the spring festival week
         #self.history_resampled.fillna(method="ffill", inplace=True)
         dropped = history_resampled.dropna(axis=0, inplace=True)
@@ -108,11 +109,11 @@ class Stock(object):
 
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
-            BAND_DOWNWARD       : "rv",
-            BAND_NATURAL_REACT  : "m<",
-            BAND_SECOND_REACT   : "m*",
-            BAND_SECOND_RALLY   : "c*",
-            BAND_NATURAL_RALLY  : "c>",
+            BAND_DNWARD       : "rv",
+            BAND_NAT_RALLY  : "m<",
+            BAND_SEC_RALLY   : "m*",
+            BAND_SEC_REACT   : "c*",
+            BAND_NAT_REACT  : "c>",
             BAND_UPWARD         : "g^",
         }
 
@@ -123,7 +124,7 @@ class Stock(object):
         resistance = self.history["resistance"]
         support = self.history["support"]
 
-        for band in range(BAND_DOWNWARD, BAND_UPWARD + 1):
+        for band in range(BAND_DNWARD, BAND_UPWARD + 1):
             mask = ma.make_mask(self.history.index)
             mask = ma.masked_where(level == band, mask)
             chosen = ma.masked_where(~mask.mask, close)
@@ -132,22 +133,22 @@ class Stock(object):
 
         # upward trend
         mask = ma.make_mask(self.history.index)
-        #mask = ma.masked_where(level >= BAND_SECOND_RALLY, mask)
-        mask = ma.masked_where(level >= BAND_SECOND_REACT, mask)
+        #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
+        mask = ma.masked_where(level >= BAND_SEC_RALLY, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(self.history.index, chosen, "g%s" % line, alpha=alpha, label="^:%s" % self.freq.lower())
 
         # downward trend
         mask = ma.make_mask(self.history.index)
-        mask = ma.masked_where(level <= BAND_SECOND_REACT, mask)
+        mask = ma.masked_where(level <= BAND_SEC_RALLY, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(self.history.index, chosen, "r%s" % line, alpha=alpha, label="v:%s" % self.freq.lower())
 
         if show_band:
             _band = atr/6.0
-            for _trend in (TREND_UPWARD, TREND_DOWNWARD):
+            for _trend in (TREND_UPWARD, TREND_DNWARD):
                 mask = ma.make_mask(self.history.index)
                 mask = ma.masked_where(trend == _trend, mask)
                 chosen = ma.masked_where(~mask.mask, _band)
@@ -155,7 +156,7 @@ class Stock(object):
                 if chosen.any():
                     # http://www.w3schools.com/html/html_colornames.asp
                     for i, color in enumerate(["darkgreen", "chartreuse", "beige", "yellow", "orange", "red"]):
-                        plt.bar(top.index, chosen, width=band_width, color=color, bottom=(top - (i + 1) * _band), alpha=alpha*.3)
+                        plt.bar(top.index, chosen, width=band_width, color=color, edgecolor=color, bottom=(top - (i + 1) * _band), alpha=alpha*.3)
 
     def plot_show(self):
         for label in self.ax.xaxis.get_ticklabels():

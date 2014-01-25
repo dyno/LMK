@@ -8,15 +8,15 @@ import log
 
 #--------------------------------------------------------------------------------
 # cannot be redefined to other value
-BAND_UPWARD        = 6
-BAND_NATURAL_RALLY = 5
-BAND_SECOND_RALLY  = 4
-BAND_SECOND_REACT  = 3
-BAND_NATURAL_REACT = 2
-BAND_DOWNWARD      = 1
+BAND_UPWARD     = 6
+BAND_NAT_REACT  = 5
+BAND_SEC_REACT  = 4
+BAND_SEC_RALLY  = 3
+BAND_NAT_RALLY  = 2
+BAND_DNWARD     = 1
 
 TREND_UPWARD    = 2
-TREND_DOWNWARD  = 1
+TREND_DNWARD    = 1
 
 #--------------------------------------------------------------------------------
 class LivermoreMarketKeyCalculator(object):
@@ -38,22 +38,28 @@ class LivermoreMarketKeyCalculator(object):
                 #in case we donnot have High-Low data
                 if self.band_width < 0.001:
                     self.trend = None
-                    return BAND_NATURAL_RALLY
+                    return BAND_NAT_REACT
 
             if self.trend == TREND_UPWARD:
                 level = 6 - int(math.ceil((self.upward_resistance - current_price) / (self.band_width / 6)))
-            if self.trend == TREND_DOWNWARD:
+            if self.trend == TREND_DNWARD:
                 level = int(math.ceil((current_price - self.downward_support) / (self.band_width / 6)))
 
             if level >= BAND_UPWARD:
+                if self.upward_resistance < current_price \
+                        or self.trend == TREND_DNWARD: # reset
+                    self.upward_resistance = current_price
+
                 level = BAND_UPWARD
-                self.upward_resistance = current_price
                 self.trend = TREND_UPWARD
 
-            if level <= BAND_DOWNWARD:
-                level = BAND_DOWNWARD
-                self.downward_support = current_price
-                self.trend = TREND_DOWNWARD
+            if level <= BAND_DNWARD:
+                if self.downward_support > current_price \
+                        or self.trend == TREND_UPWARD: # reset
+                    self.downward_support = current_price
+
+                level = BAND_DNWARD
+                self.trend = TREND_DNWARD
 
             self.level = level
             self.band_width = tick["ATR"]
@@ -87,8 +93,8 @@ class LivermoreMaketKeyBacktestCalculator(object):
         self.price = tick["Close"]
         try:
             #if int(tick["level"]) == BAND_UPWARD:
-            #if int(tick["level"]) >= BAND_SECOND_RALLY:
-            if int(tick["level"]) >= BAND_SECOND_REACT:
+            if int(tick["level"]) >= BAND_SEC_REACT:
+            #if int(tick["level"]) >= BAND_SEC_RALLY:
                 amount = int(self.cash / self.price)
                 if amount > 0:
                     if self.try_first_hand:
@@ -115,8 +121,8 @@ class LivermoreMaketKeyBacktestCalculator(object):
 
             self.first_skipped = True
 
-            #if int(tick["level"]) == BAND_DOWNWARD:
-            if int(tick["level"]) <= BAND_NATURAL_REACT:
+            if int(tick["level"]) == BAND_DNWARD:
+            #if int(tick["level"]) <= BAND_NAT_RALLY:
                 self.first_skipped = True
                 self.try_first_hand = True
                 amount = self.amount
@@ -128,7 +134,7 @@ class LivermoreMaketKeyBacktestCalculator(object):
                     else:
                         self.sell_price = self.price
 
-                    if tick["level"] > BAND_DOWNWARD and not cut_loss:
+                    if tick["level"] > BAND_DNWARD and not cut_loss:
                         amount /= 2
 
                     self.cash += (amount * self.price - self.commission)

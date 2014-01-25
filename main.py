@@ -6,19 +6,19 @@ import log
 from stock import Stock
 
 # ------------------------------------------------------------------------------
-def process_week_day(stock_name):
+def analysis(stock_name):
     stk = Stock(stock_name)
     stk.plot_init()
 
     stk.retrieve_history(use_cache=False, start="9/1/2013")
 
-    stk.process_atr(atr_period=15)
+    stk.process_atr(atr_period=14)
     stk.process_livermore_market_key()
     stk.process_backtest()
     stk.plot_livermore_trend(line="--", alpha=.2)#, show_band=True, band_width=1)
 
     stk.resample_history(freq="W-FRI")
-    stk.process_atr(atr_period=3)
+    #stk.process_atr(atr_period=3)
     stk.process_livermore_market_key()
     stk.process_backtest()
     stk.plot_livermore_trend(line="-", alpha=1, show_band=True, band_width=7)
@@ -26,8 +26,10 @@ def process_week_day(stock_name):
     stk.plot_show()
 
 def main():
-    #process_week_day("AMAP")
-    process_week_day("300052.SZ")
+    #analysis("AMAP")
+    #analysis("300052.SZ")
+    #analysis("300223.SZ")
+    analysis("TSLA")
 
 if __name__ == "__main__":
     log.init()
