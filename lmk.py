@@ -94,12 +94,15 @@ class LivermoreMaketKeyBacktestCalculator(object):
         self.sell_price = None
         self.try_first_hand = True
         self.last_value_rate = None
+        self.first_trend_skipped = False
 
     def __call__(self, tick):
         self.price = tick["Close"]
         try:
             #if int(tick["level"]) == BAND_UPWARD:
             if int(tick["level"]) >= BAND_SEC_RALLY:
+                if not self.first_trend_skipped: return
+
             #if int(tick["level"]) >= BAND_SEC_REACT:
                 amount = int(self.cash / self.price)
                 if amount > 0:
@@ -125,11 +128,10 @@ class LivermoreMaketKeyBacktestCalculator(object):
                                       "PROFIT" if value_rate >= self.last_value_rate else "LOSS"))
                         self.last_value_rate = value_rate
 
-            self.first_skipped = True
-
             #if int(tick["level"]) == BAND_DNWARD:
             if int(tick["level"]) <= BAND_NAT_REACT:
-                self.first_skipped = True
+                self.first_trend_skipped = True
+
                 self.try_first_hand = True
                 amount = self.amount
                 cut_loss = False
