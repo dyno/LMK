@@ -148,7 +148,7 @@ for idx, name in enumerate(stks):
     plt.axvline(datetime(1940, 1, 1), color="black", alpha=.5,label="1940")
     if name == "BS":
         # "On June 2nd, Bethlehem Steel became a buy at 43" ...
-        plt.axvline(datetime(1938, 6, 2), ymax=(43-ymin)/(ymax-ymin), label="Jun 2")
+        plt.axvline(datetime(1938, 6, 2), ymax=(43.0-ymin)/(ymax-ymin), label="Jun 2")
     if name == "US":
         #"On the same day U.S. Steel became a buy at 42.1/4" ...
         plt.axvline(datetime(1938, 6, 2), ymax=(42.25-ymin)/(ymax-ymin), label="Jun 2")
