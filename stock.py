@@ -1,24 +1,12 @@
 #!/usr/bin/env python
 
-import traceback
 import sys
-import math
-import logging
 from os.path import exists, join
 from datetime import date
 
-import matplotlib.pyplot as plt
 import pandas
 from pandas.io.data import DataReader
 from pandas import HDFStore, Series, DataFrame
-from numpy import ma
-from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
-import matplotlib.ticker as ticker
-
-from atr import ATRCalculator as ATRC
-from lmk import LivermoreMarketKeyCalculator as LMKC, LivermoreMaketKeyBacktestCalculator as LMKBC
-from lmk import BAND_DNWARD, BAND_NAT_REACT, BAND_SEC_REACT, BAND_SEC_RALLY, BAND_NAT_RALLY, BAND_UPWARD
-from lmk import TREND_DNWARD, TREND_UPWARD
 
 import log
 
@@ -27,7 +15,6 @@ class Stock(object):
     def __init__(self, name):
         self.name = name
         self.freq = "D"
-        self.atr_factor = 2
 
     def retrieve_history(self, use_cache=True, start="12/1/2013", end=date.today(), no_volume=False):
         store_name = join("cache", "%s.hd5" % self.name)
@@ -66,113 +53,5 @@ class Stock(object):
             log.logger.debug("NA droped: %s" % dropped)
 
         self.history = history_resampled
-
-    def process_atr(self, atr_period=15):
-        calculator = ATRC(atr_period)
-        self.history["ATR"] = self.history.apply(calculator, axis=1)
-
-    def process_livermore_market_key(self, atr_factor=2):
-        self.atr_factor = atr_factor
-        calculator = LMKC(atr_factor=atr_factor)
-        lmk = self.history.apply(calculator, axis=1)
-        self.history = pandas.merge(self.history, lmk,
-                                    left_index=True, right_index=True, sort=False)
-
-    def process_backtest(self, fund=10000, commission=9.9):
-        calculator = LMKBC(fund, commission)
-        self.history["value"] = self.history.apply(calculator, axis=1)
-        profit_rate = (calculator.value_rate() - 1) * 100
-        log.logger.info("profit=%.2f%%", profit_rate)
-
-        return profit_rate
-
-    def plot_init(self):
-        if hasattr(self, "ax") and not self.ax is None: return
-
-        # http://matplotlib.org/examples/pylab_examples/color_by_yvalue.html
-        #days = WeekdayLocator(MONDAY)
-        days = WeekdayLocator(FRIDAY)
-        months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
-        #monthsFmt = DateFormatter("%b '%y")
-        #monthsFmt = DateFormatter("%b")
-        monthsFmt = DateFormatter("%b")
-        dayFmt = DateFormatter("%d")
-        ax = plt.gca()
-        ax.xaxis.set_major_locator(months)
-        ax.xaxis.set_major_formatter(monthsFmt)
-        ax.xaxis.set_minor_locator(days)
-        ax.xaxis.set_minor_formatter(dayFmt)
-        #ax.xaxis.set_minor_locator(ticker.MaxNLocator(10, prun="both"))
-        ax.grid(True)
-        ax.xaxis.grid(False, which='major')
-        ax.xaxis.grid(True, which='minor')
-        ax.set_xmargin(0.02)
-
-        self.ax = ax
-
-    def plot_livermore_trend(self, line="-", alpha=1, show_band=False, band_width=1):
-        # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
-        style_dict = {
-            BAND_DNWARD     : "rv",
-            BAND_NAT_REACT  : "m<",
-            BAND_SEC_REACT  : "m*",
-            BAND_SEC_RALLY  : "c*",
-            BAND_NAT_RALLY  : "c>",
-            BAND_UPWARD     : "g^",
-        }
-
-        close = self.history["Close"]
-        atr = self.history["ATR"] * self.atr_factor
-        level = self.history["level"]
-        trend = self.history["trend"]
-        resistance = self.history["resistance"]
-        support = self.history["support"]
-
-        for band in range(BAND_DNWARD, BAND_UPWARD + 1):
-            mask = ma.make_mask(self.history.index)
-            mask = ma.masked_where(level == band, mask)
-            chosen = ma.masked_where(~mask.mask, close)
-            if chosen.any():
-                plt.plot(self.history.index, chosen, style_dict[band], alpha=alpha)
-
-        # upward trend
-        mask = ma.make_mask(self.history.index)
-        mask = ma.masked_where(level >= BAND_SEC_RALLY, mask)
-        #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
-        chosen = ma.masked_where(~mask.mask, close)
-        if chosen.any():
-            plt.plot(self.history.index, chosen, "g%s" % line, alpha=alpha, label="^:%s" % self.freq.lower())
-
-        # downward trend
-        mask = ma.make_mask(self.history.index)
-        mask = ma.masked_where(level <= BAND_SEC_REACT, mask)
-        chosen = ma.masked_where(~mask.mask, close)
-        if chosen.any():
-            plt.plot(self.history.index, chosen, "r%s" % line, alpha=alpha, label="v:%s" % self.freq.lower())
-
-        if show_band:
-            _band = atr / 6.0
-            for _trend in (TREND_UPWARD, TREND_DNWARD):
-                mask = ma.make_mask(self.history.index)
-                mask = ma.masked_where(trend == _trend, mask)
-                chosen = ma.masked_where(~mask.mask, _band)
-                top = resistance if _trend == TREND_UPWARD else support + atr
-                if chosen.any():
-                    # http://www.w3schools.com/html/html_colornames.asp
-                    for i, color in enumerate(["darkgreen", "chartreuse", "beige", "yellow", "orange", "red"]):
-                        plt.bar(top.index, chosen, width=band_width, color=color, edgecolor=color, bottom=(top - (i + 1) * _band), alpha=alpha*.3)
-
-    def plot_show(self):
-        for label in self.ax.xaxis.get_ticklabels():
-            # label is a Text instance
-            #label.set_color('')
-            label.set_rotation(45)
-            label.set_fontsize(12)
-            label.set_alpha(.5)
-
-        #handles, labels = self.ax.get_legend_handles_labels()
-        #self.ax.legend(handles, labels, loc=9) # bbox_to_anchor=(0, 0, 0, 1.1), loc=9)
-        self.ax.set_title(self.name)
-        plt.show()
 
 
