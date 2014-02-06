@@ -1,3 +1,6 @@
+import urllib2
+import socket
+
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
@@ -24,3 +27,24 @@ def show_plot():
 
     plt.show()
 
+def probe_proxy():
+    use_proxy = False
+
+    with open("/etc/resolv.conf") as resolv:
+        for line in resolv:
+            if line.find("vmware.com") != -1:
+                use_proxy = True
+
+    if not use_proxy:
+        proxy_support = urllib2.ProxyHandler({})
+        opener = urllib2.build_opener(proxy_support)
+        urllib2.install_opener(opener)
+
+    return use_proxy
+
+if __name__ == "__main__":
+    print probe_proxy()
+    try:
+        response = urllib2.urlopen("http://www.google.com")
+    except Exception, e:
+        print e
