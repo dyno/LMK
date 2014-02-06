@@ -4,6 +4,11 @@ import socket
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
+def init_plot():
+    ax = plt.gca()
+    ax.set_xmargin(0.02)
+    ax.set_ymargin(0.02)
+
 def show_plot():
     #days = WeekdayLocator(MONDAY)
     days = WeekdayLocator(FRIDAY)
@@ -20,8 +25,6 @@ def show_plot():
     ax.grid(True)
     ax.xaxis.grid(True, which='major')
     #ax.xaxis.grid(True, which='minor')
-    ax.set_xmargin(0.05)
-    ax.set_ymargin(0.05)
 
     plt.xticks(rotation=25)
 
