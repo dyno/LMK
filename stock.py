@@ -46,6 +46,8 @@ class Stock(object):
                                       columns=["Open", "High", "Low", "Close", "Volume", "Adj Close"], dtype=float)
                 row = get_quote_today(self.name)
                 df.ix[0] = map(float, row[2:])
+                # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
+                df["Volume"] = df["Volume"].astype(int)
                 self.history_daily = self.history_daily.append(df)
 
             self.store = HDFStore(store_name)
