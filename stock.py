@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
+import urllib2
 import sys
+import csv
 from os.path import exists, join
 from datetime import date
 
@@ -9,6 +11,17 @@ from pandas.io.data import DataReader
 from pandas import HDFStore, Series, DataFrame
 
 import log
+
+# http://www.gummy-stuff.org/Yahoo-data.htm
+YAHOO_TODAY="http://download.finance.yahoo.com/d/quotes.csv?s=%s&f=sd1ohgl1vl1"
+
+def get_quote_today(symbol):
+    response = urllib2.urlopen(YAHOO_TODAY % symbol)
+    reader = csv.reader(response, delimiter=",", quotechar='"')
+    for row in reader:
+        if row[0] == symbol:
+            return row
+
 
 #--------------------------------------------------------------------------------
 class Stock(object):
@@ -25,6 +38,16 @@ class Stock(object):
         else:
             self.history_daily = DataReader(self.name, "yahoo", start, end)
             #self.history_daily = DataReader(self.name, "google", start, end)
+            # append today's data
+            last = pandas.to_datetime(self.history_daily.ix[-1].name).date()
+            today = date.today()
+            if pandas.to_datetime(end).date() == today and last != today:
+                df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
+                                      columns=["Open", "High", "Low", "Close", "Volume", "Adj Close"], dtype=float)
+                row = get_quote_today(self.name)
+                df.ix[0] = map(float, row[2:])
+                self.history_daily = self.history_daily.append(df)
+
             self.store = HDFStore(store_name)
             self.store.put("history", self.history_daily)
             if not no_volume: # index like 000001.SS has no volume data
@@ -54,4 +77,8 @@ class Stock(object):
 
         self.history = history_resampled
 
-
+if __name__ == "__main__":
+    print get_quote_today("YOKU")
+    stk = Stock("YOKU")
+    stk.retrieve_history(start="1/1/2013", use_cache=False)
+    print stk.history_daily.tail()
