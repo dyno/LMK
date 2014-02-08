@@ -5,11 +5,13 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
 def init_plot():
+    plt.rcParams['figure.figsize'] = (20, 10)
+    plt.clf()
     ax = plt.gca()
     ax.set_xmargin(0.02)
     ax.set_ymargin(0.02)
 
-def show_plot():
+def show_plot(filename=""):
     #days = WeekdayLocator(MONDAY)
     days = WeekdayLocator(FRIDAY)
     months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
@@ -28,7 +30,10 @@ def show_plot():
 
     plt.xticks(rotation=25)
 
-    plt.show()
+    if not filename:
+        plt.show()
+    else:
+        plt.savefig(filename)
 
 def probe_proxy():
     use_proxy = False
