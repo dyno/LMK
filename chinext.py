@@ -3,7 +3,7 @@
 
 import urllib2
 import sys
-import pickle
+import json
 from os.path import exists, join
 from HTMLParser import HTMLParser
 
@@ -71,7 +71,7 @@ def get_chinext_db():
 
     db_file = join("cache", "chinext.db")
     if exists(db_file):
-        db = pickle.load(open(db_file))
+        db = json.load(open(db_file))
         return db
 
     url = "http://quotes.money.163.com/f10/gemNewListing.html"
@@ -80,7 +80,7 @@ def get_chinext_db():
     parser = MyHTMLParser()
     parser.feed(f.read())
     db = parser.db
-    pickle.dump(db, open(db_file, "wb"))
+    json.dump(db, open(db_file, "wb"), sort_keys=True, indent=4)
 
     return db
 
