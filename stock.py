@@ -19,9 +19,8 @@ def get_quote_today(symbol):
     response = urllib2.urlopen(YAHOO_TODAY % symbol)
     reader = csv.reader(response, delimiter=",", quotechar='"')
     for row in reader:
-        if row[0] == symbol:
+        if row[0] == symbol and row[1] != "N/A":
             return row
-
 
 #--------------------------------------------------------------------------------
 class Stock(object):
@@ -42,20 +41,22 @@ class Stock(object):
             last = pandas.to_datetime(self.history_daily.ix[-1].name).date()
             today = date.today()
             if pandas.to_datetime(end).date() == today and last != today:
-                df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
-                                      columns=["Open", "High", "Low", "Close", "Volume", "Adj Close"], dtype=float)
                 row = get_quote_today(self.name)
-                df.ix[0] = map(float, row[2:])
-                # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
-                df["Volume"] = df["Volume"].astype(int)
-                self.history_daily = self.history_daily.append(df)
+                if row:
+                    df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
+                                          columns=["Open", "High", "Low", "Close", "Volume", "Adj Close"], dtype=float)
+                    df.ix[0] = map(float, row[2:])
+                    # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
+                    df["Volume"] = df["Volume"].astype(int)
+                    self.history_daily = self.history_daily.append(df)
 
             self.store = HDFStore(store_name)
             self.store.put("history", self.history_daily)
-            if not no_volume: # index like 000001.SS has no volume data
-                # suspension - no trading event
-                self.history_daily = self.history_daily[self.history_daily["Volume"] != 0]
             self.store.flush()
+
+        if not no_volume: # index like 000001.SS has no volume data
+            # suspension - no trading event
+            self.history_daily = self.history_daily[self.history_daily["Volume"] != 0]
 
         self.history = self.history_daily
 
