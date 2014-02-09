@@ -66,7 +66,7 @@ class LMKBandCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk_band(history, atr_factor=2, line="-", alpha=1.0, show_band=False, band_width=1):
+def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1):
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
             BAND_DNWARD     : "rv",
@@ -88,6 +88,8 @@ def plot_lmk_band(history, atr_factor=2, line="-", alpha=1.0, show_band=False, b
             mask = ma.make_mask(history.index)
             mask = ma.masked_where(level == band, mask)
             chosen = ma.masked_where(~mask.mask, close)
+            # "ValueError: putmask: mask and data must be the same size" is a numpy bug.
+            # using virtual env.
             if chosen.any():
                 plt.plot(history.index, chosen, style_dict[band], alpha=alpha)
 
@@ -205,11 +207,11 @@ if __name__ == "__main__":
 
     from ATRCalculator import ATRCalculator
     from InitialPivotalPointCalculator import InitialPivotalPointCalculator
-    from common import show_plot
+    from common import show_plot, probe_proxy
     from stock import Stock
 
+    probe_proxy()
     log.init()
-
 
     stk = Stock("^GSPC")
     stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)

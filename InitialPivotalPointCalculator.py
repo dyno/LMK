@@ -21,6 +21,7 @@ class InitialPivotalPointCalculator(object):
     def __call__(self, tick):
         if self.done: return
 
+        assert "ATR" in tick, "ATR is assumed to be calculated and present in daily data!"
         self.distance = tick["ATR"] * self.atr_factor
         current_price = Extreme(tick.name, tick["Close"])
 

@@ -2,30 +2,23 @@
 
 import sys
 
+import pandas
+from datetime import date
+
 import log
 from stock import Stock
-
-import pandas
+from common import show_plot
 from LMKCalculator import LMKCalculator, LMKBacktestCalculator, plot_lmk
 from LMKBandCalculator import LMKBandCalculator, LMKBandBacktestCalculator, plot_lmk_band
 from InitialPivotalPointCalculator import InitialPivotalPointCalculator
-from ATRCalculator import ATRCalculator
-
-from common import show_plot
-from stock import Stock
 
 # ------------------------------------------------------------------------------
-def lmk_analysis(stock_name, no_volume=False, start="2011/1/1", atr_factor=2, freq="D", plot=False):
-    stk = Stock(stock_name)
+def lmk_analysis(symbol, start="2011/1/1", end=date.today(), use_cache=True,
+                 no_volume=False, atr_factor=2, freq="D", plot=False):
+    stk = Stock(symbol)
     stk.retrieve_history(start=start, use_cache=False, no_volume=no_volume)
-
-    history = stk.history
-
-    c = ATRCalculator(atr_period=14)
-    history["ATR"] = history.apply(c, axis=1)
-    history.fillna(method="backfill", axis=0, inplace=True)
-
     stk.resample_history(freq=freq)
+
     history = stk.history
 
     # LMK
@@ -46,17 +39,12 @@ def lmk_analysis(stock_name, no_volume=False, start="2011/1/1", atr_factor=2, fr
 
     return result
 
-def lmk_band_analysis(stock_name, start="2011/1/1", no_volume=False, atr_factor=2.0, freq="D", plot_width=0):
-    stk = Stock(stock_name)
-    stk.retrieve_history(start=start, use_cache=False, no_volume=no_volume)
-
-    history = stk.history
-
-    c = ATRCalculator(atr_period=14)
-    history["ATR"] = history.apply(c, axis=1)
-    history.fillna(method="backfill", axis=0, inplace=True)
-
+def lmk_band_analysis(symbol, start="2011/1/1", end=date.today(), use_cache=True,
+                      no_volume=False, atr_factor=2.0, freq="D", plot_width=0):
+    stk = Stock(symbol)
+    stk.retrieve_history(start=start, end=end, use_cache=use_cache, no_volume=no_volume)
     stk.resample_history(freq=freq)
+
     history = stk.history
 
     # LMKBand
@@ -78,29 +66,29 @@ def lmk_band_analysis(stock_name, start="2011/1/1", no_volume=False, atr_factor=
     return result
 
 def main():
-    for stk_name in ["000001.SS", "300052.SZ", "300223.SZ",
+    for symbol in ["000001.SS", "300052.SZ", "300223.SZ",
                      "^GSPC", "AAPL", "GOOG", "VMW", "TSLA", "AMZN", "FB", "TWTR",
                      "BIDU", "QIHU", "EDU"]:
         for atr_factor in (1.0, 1.5, 2.0, 2.5, 3.0):
             for freq in ("D", "W-FRI", "W-MON"):
-                continue
-                no_volume = True if stk_name in ("000001.SS", "^GSPC") else False
-                result = lmk_analysis(stk_name, no_volume, atr_factor=atr_factor, freq=freq)
-                print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (stk_name, atr_factor, freq, result)
-                result = lmk_band_analysis(stk_name, no_volume, atr_factor=atr_factor, freq=freq)
-                print "%s: atr_factor=%.1f, freq=%5s, lmk_band_result=%.2f" % (stk_name, atr_factor, freq, result)
+                continue # shortcut - commented
+                no_volume = True if symbol in ("000001.SS", "^GSPC") else False
+                result = lmk_analysis(symbol, no_volume, atr_factor=atr_factor, freq=freq)
+                print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
+                result = lmk_band_analysis(symbol, no_volume, atr_factor=atr_factor, freq=freq)
+                print "%s: atr_factor=%.1f, freq=%5s, lmk_band_result=%.2f" % (symbol, atr_factor, freq, result)
 
 
-    stk_name = "VMW"
-    #result = lmk_band_analysis(stk_name, start="2013/1/1", no_volume=False, atr_factor=2.0, freq="W-FRI", plot_width=7)
-    #print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (stk_name, atr_factor, freq, result)
+    symbol = "VMW"
+    #result = lmk_band_analysis(symbol, start="2013/1/1", no_volume=False, atr_factor=2.0, freq="W-FRI", plot_width=7)
+    #print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
 
-    stk_name = "TSLA"
+    symbol = "TSLA"
     atr_factor=2.0
     freq="W-FRI" #"D"
     plot_width= 7 #1
-    result = lmk_band_analysis(stk_name, start="2013/6/1", no_volume=False, atr_factor=atr_factor, freq=freq, plot_width=plot_width)
-    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (stk_name, atr_factor, freq, result)
+    result = lmk_band_analysis(symbol, start="2013/6/1", no_volume=False, atr_factor=atr_factor, freq=freq, plot_width=plot_width)
+    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
     show_plot()
 #           000001.SS: atr_factor=2.0, freq=W-FRI, result={'LMKBand': 0.8696190000000009, 'LMK': 0.94849700000000214} *
 #           300052.SZ: atr_factor=1.0, freq=W-MON, result={'LMKBand': 2.698414000000001, 'LMK': 5.4609190000000005} *
@@ -119,11 +107,14 @@ def main():
 
 if __name__ == "__main__":
     import logging
+    from common import probe_proxy
+
+    probe_proxy()
     #log.init(logging.INFO)
     log.init(logging.DEBUG)
+
     main()
 
 # TODO:
 # *. biweekly? dynamic frequency?
-# *. pandas.io.data DataReader("" , "163", start, end)
 
