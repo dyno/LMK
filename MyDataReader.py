@@ -92,6 +92,26 @@ def get_quote_today_163(symbol):
     except HTTPError, e:
         log.logger.debug("open '%s' result error.\n%s", url, e)
 
+API_MONEY_126_URL = "http://api.money.126.net/data/feed/%s,money.api"
+def get_quote_today_126(code):
+    url = API_MONEY_126_URL % code
+    log.logger.debug("get_quote_today_126(): '%s'", url)
+    try:
+        response = urlopen(url)
+        start = len("_ntes_quote_callback(")
+        end = -len(");")
+        data = response.read()[start:end]
+        data = json.loads(data)[code]
+        return { "Open" : data["open"],
+                 "High" : data["high"],
+                 "Low"  : data["low"],
+                 "Close": data["yestclose"] + data["updown"],
+                 "Volume": data["volume"] / 100,
+                 "Adj Close" : data["yestclose"] + data["updown"],
+                }
+    except HTTPError, e:
+        log.logger.debug("open '%s' result error.\n%s", url, e)
+
 
 _HISTORICAL_163_URL = "http://quotes.money.163.com/service/chddata.html?code=%s&start=%s&end=%s&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;VOTURNOVER;VATURNOVER"
 # http://quotes.money.163.com/service/chddata.html?code=1000001&start=19910102&end=20140207&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP
@@ -150,7 +170,8 @@ def MyDataReader(symbol, start=None, end=None):
     today = date.today()
     if pandas.to_datetime(end).date() == today and last != today:
         if match_china:
-            row = get_quote_today_163(code[1:])
+            #row = get_quote_today_163(code[1:])
+            row = get_quote_today_126(code)
             if row:
                 df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
                                       columns=COLUMNS, dtype=float)
@@ -171,12 +192,19 @@ def MyDataReader(symbol, start=None, end=None):
 
 
 if __name__ == "__main__":
+    import sys
     from common import probe_proxy
     probe_proxy()
     log.init(logging.DEBUG)
 
     # China Securities Regulatory Commission
     # http://www.csrc.gov.cn/pub/newsite/scb/ssgshyfljg/201401/W020140102326518754522.pdf # 行业分类
+
+    symbol = "000001.SS"
+    hist = MyDataReader(symbol)
+    print hist.tail()
+
+    sys.exit(0)
 
     symbol = "300382.SZ"
     hist = MyDataReader(symbol)
