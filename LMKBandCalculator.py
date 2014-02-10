@@ -113,12 +113,11 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
             for _trend in (TREND_UPWARD, TREND_DNWARD):
                 mask = ma.make_mask(history.index)
                 mask = ma.masked_where(trend == _trend, mask)
-                height =  atr[~mask.mask] / 6.0
-                _top = top[~mask.mask]
+                height =  atr / 6.0
                 if chosen.any():
                     # http://www.w3schools.com/html/html_colornames.asp
                     for i, color in enumerate(["darkgreen", "chartreuse", "beige", "yellow", "orange", "red"]):
-                        plt.bar(_top.index, height, bottom=(_top - (i + 1) * height),
+                        plt.bar(top.index, height, bottom=(top - (i + 1) * height),
                                 width=band_width, color=color, edgecolor=color, alpha=alpha * .2)
 
 #--------------------------------------------------------------------------------
