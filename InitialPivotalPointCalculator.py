@@ -28,10 +28,21 @@ class InitialPivotalPointCalculator(object):
         new_extreme = False
         if self.last_price:
             if current_price.value > self.last_price.value:
+                if not self.peak:
+                    self.peak = current_price
+                if not self.valley:
+                    self.valley = self.last_price
+
                 if self.trend == TREND_DNWARD:
                     new_extreme = True
                 self.trend = TREND_UPWARD
+
             if  current_price.value < self.last_price.value:
+                if not self.peak:
+                    self.valley = self.last_price
+                if not self.valley:
+                    self.peak = current_price
+
                 if self.trend == TREND_UPWARD:
                     new_extreme = True
                 self.trend = TREND_DNWARD
@@ -62,14 +73,14 @@ class InitialPivotalPointCalculator(object):
         self.last_price = current_price
 
 if __name__ == "__main__":
-    from datetime import datetime
-
     import matplotlib.pyplot as plt
     from pandas.io.data import DataReader
     import pandas as pd
 
     from ATRCalculator import ATRCalculator
-    from common import show_plot
+    from common import probe_proxy, show_plot
+
+    probe_proxy()
 
     history = DataReader("000001.SS", "yahoo", start="2008/1/1", end="2008/6/1")
     c = ATRCalculator(atr_period=14)
@@ -81,6 +92,19 @@ if __name__ == "__main__":
     plt.axvline(pd.to_datetime(c.peak.when), color="g", alpha=.3)
     plt.axvline(pd.to_datetime(c.valley.when), color="r", alpha=.3)
 
-    show_plot()
+    #show_plot()
+
+    from MyDataReader import MyDataReader
+    from stock import Stock
+
+    stk = Stock("300369.SZ")
+    stk.retrieve_history(start="2013/1/1")
+
+    print stk.history.head()
+    print stk.history.tail()
+
+    c = InitialPivotalPointCalculator(atr_factor=2)
+    history.apply(c, axis=1)
+    print c.peak, c.valley
 
 
