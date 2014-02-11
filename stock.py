@@ -2,7 +2,7 @@
 
 import sys
 from os.path import exists, join
-from datetime import date
+from datetime import date, timedelta
 
 import pandas
 from pandas import HDFStore, DataFrame
@@ -15,6 +15,8 @@ from ATRCalculator import ATRCalculator
 class Stock(object):
     def __init__(self, symbol):
         self.symbol = symbol
+        # http://quotes.money.163.com/stocksearch/json.do?count=1&word=300052
+        self.name = symbol
         self.freq = "D"
 
     def retrieve_history(self, start="12/1/2013", end=date.today(), use_cache=True,
@@ -45,7 +47,7 @@ class Stock(object):
         # slice data between requested period, history has to be sorted
         # http://stackoverflow.com/questions/16175874/python-pandas-dataframe-slicing-by-date-conditions
         start = pandas.to_datetime(start)
-        end = pandas.to_datetime(end)
+        end = pandas.to_datetime(end) + timedelta(days=1)
         self.history = self.history_daily[start:end]
 
     def resample_history(self, freq="W-FRI"):
@@ -76,7 +78,8 @@ if __name__ == "__main__":
     probe_proxy()
     log.init()
 
-    for symbol in ("YOKU", "399006.SZ", "000001.SS"):
+    #for symbol in ("YOKU", "399006.SZ", "000001.SS"):
+    for symbol in ("000001.SS",):
         stk = Stock(symbol)
         stk.retrieve_history(start="1/1/2013", use_cache=False, no_volume=True)
         print symbol

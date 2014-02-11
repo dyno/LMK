@@ -80,13 +80,14 @@ def main():
 
 
     symbol = "VMW"
-    #result = lmk_band_analysis(symbol, start="2013/1/1", no_volume=False, atr_factor=2.0, freq="W-FRI", plot_width=7)
-    #print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
-
     symbol = "TSLA"
+    symbol = "300369.SZ"
+    symbol = "000001.SS"
     atr_factor=2.0
     freq="W-FRI" #"D"
     plot_width= 7 #1
+    freq="D" #"D"
+    plot_width = 1
     result = lmk_band_analysis(symbol, start="2013/6/1", no_volume=False, atr_factor=atr_factor, freq=freq, plot_width=plot_width)
     print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
     show_plot()
