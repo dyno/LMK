@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8 :
 
 import time
+import sys
 import re
 import operator
 import logging
@@ -10,6 +11,7 @@ import datetime
 import csv
 from urllib2 import urlopen, HTTPError
 from datetime import date
+from StringIO import StringIO
 from HTMLParser import HTMLParser
 
 import pandas
@@ -20,6 +22,7 @@ from pandas import Series
 
 import log
 import MyDataReader
+from common import fmt_err_msg
 
 
 #http://quotes.money.163.com/service/dadan_data.html?symbol=300382&amount=500000&page=0
@@ -120,14 +123,29 @@ def get_data(code=None, start=None, end=None, retry_count=3,
         try:
             log.logger.debug("get_data(): url='%s'", url)
             response = urlopen(url)
-            #response = open("/Users/hfu/Downloads/000001.csv")
-            rs = read_csv(response, encoding="GBK", index_col=0, parse_dates=True, skiprows=[0,])
+
+            # debugging code
+            #f = open("/tmp/%s.csv" % code, "w")
+            #f.write(response.read())
+            #f.close()
+            #sys.exit(0)
+            #response = open("/tmp/%s.csv" % code)
+
+            # skip empty lines in head
+            sio = StringIO(response.read())
+            sio.seek(0, 0)
+            while True:
+                c = sio.read(1)
+                if not c.isspace(): break
+            sio.seek(-1, 1)
+
+            rs = read_csv(sio, encoding="GBK", index_col=0, parse_dates=True)
             #日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,成交量,成交金额
             rs = rs[[u"开盘价", u"最高价", u"最低价", u"收盘价", u"成交量", u"收盘价"]]
             rs.columns = MyDataReader.COLUMNS
             return rs
         except _network_error_classes, e:
-            log.logger("get_data(): '%s' error:\n%s", url, e)
+            log.logger.debug("get_data(): '%s' error:\n%s", url, fmt_err_msg(e))
 
     raise IOError("after %d tries, %s did not return a 200 for url %r" % (retry_count, name, url))
 
@@ -153,7 +171,7 @@ def search_stock(symbol):
             if stk["type"] == type:
                 return stk
     except HTTPError, e:
-        log.logger.debug("open '%s' result error.\n%s", url, e)
+        log.logger.debug("open '%s' result error.\n%s", url, fmt_err_msg(e))
 
 
 if __name__ == "__main__":

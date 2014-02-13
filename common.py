@@ -1,5 +1,8 @@
+import traceback
+import sys
 import urllib2
 import socket
+from StringIO import StringIO
 
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
@@ -35,6 +38,7 @@ def show_plot(filename=""):
     else:
         plt.savefig(filename)
 
+
 def probe_proxy():
     use_proxy = False
 
@@ -50,9 +54,28 @@ def probe_proxy():
 
     return use_proxy
 
+
+def fmt_err_msg(e):
+    errmsg = "<%s: %s>" % (e.__class__.__name__, e)
+
+    tb = sys.exc_info()[2]
+    if tb:
+        sio = StringIO()
+        try:
+            traceback.print_tb(tb, 10, sio)
+            errmsg = "%s\nStackTrace:\n%s" % (errmsg, sio.getvalue())
+        finally:
+            sio.close()
+
+    return errmsg
+
+
 if __name__ == "__main__":
-    print probe_proxy()
     try:
+        probe_proxy()
         response = urllib2.urlopen("http://www.google.com")
+        raise Exception("nothing actually wrong ;)")
     except Exception, e:
-        print e
+        print fmt_err_msg(e)
+
+
