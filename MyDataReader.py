@@ -4,7 +4,7 @@
 import re
 import logging
 import datetime
-from datetime import date
+from datetime import date, timedelta
 
 import pandas
 from pandas.io.data import DataReader, _sanitize_dates
@@ -35,30 +35,33 @@ def MyDataReader(symbol, start=None, end=None):
 
         hist = ntes.get_data(code, start=start, end=end)
 
+    hist.sort(ascending=True, inplace=True) # data might be desending, like 163
+
     # patch today's price
-    hist.sort(ascending=True, inplace=True) # 163 data is desending
     last = pandas.to_datetime(hist.ix[-1].name).date()
-    today_here = date.today()
-    dt = datetime.datetime.utcnow() + datetime.timedelta(seconds=8*60*60) # Beijing Time
-    today_china = dt.date()
-    if pandas.to_datetime(end).date() == today_here:
-        if match_china and last != today_china:
-            row = ntes.get_quote_today(code)
-            if row:
-                df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today_china, end=today_china, freq="D"),
-                                      columns=COLUMNS, dtype=float)
-                df.ix[0] = Series(row)
-                df["Volume"] = df["Volume"].astype(int)
-                hist = hist.append(df)
-        elif last != today_here:
-            row = yhoo.get_quote_today(symbol)
-            if row:
-                df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today_here, end=today_here, freq="D"),
-                                      columns=COLUMNS, dtype=float)
-                df.ix[0] = map(float, row[2:])
-                # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
-                df["Volume"] = df["Volume"].astype(int)
-                hist = hist.append(df)
+    dt_utc = datetime.datetime.utcnow()
+    dt_beijing =  dt_utc + timedelta(seconds=8*60*60) # Beijing Time
+    dt_newyork =  dt_utc - datetime.timedelta(seconds=4*60*60) # New York Time
+    row_today = None
+    if match_china:
+        today = dt_beijing.date()
+        if (timedelta(days=1) <= today - last <= timedelta(days=7)
+                and dt_beijing.time() > datetime.time(hour=9)):
+            row_today = ntes.get_quote_today(code)
+            row_today = Series(row_today) if row_today else None
+    else:
+        today = dt_newyork.date()
+        if timedelta(days=1) <= today - last <= timedelta(days=7):
+            row_today = yhoo.get_quote_today(symbol)
+            row_today = map(float, row_today[2:]) if row_today else None
+
+    if row_today:
+        df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
+                              columns=COLUMNS, dtype=float)
+        df.ix[0] = row_today
+        # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
+        df["Volume"] = df["Volume"].astype(int)
+        hist = hist.append(df)
 
     return hist
 
@@ -90,5 +93,5 @@ if __name__ == "__main__":
 
     symbol = "AAPL"
     hist = MyDataReader(symbol)
-    print hist.head()
+    print hist.tail()
 
