@@ -79,13 +79,16 @@ def _get_quote_today_dadan(symbol):
 API_MONEY_126_URL = "http://api.money.126.net/data/feed/%s,money.api"
 def _get_quote_today_126(code):
     url = API_MONEY_126_URL % code
-    log.logger.debug("get_quote_today_126(): '%s'", url)
+    log.logger.debug("_get_quote_today_126(): '%s'", url)
     try:
         response = urlopen(url)
         data = response.read()
         start, end = data.find("(") + 1, data.find(")")
         data = data[start:end]
         data = json.loads(data)[code]
+        log.logger.debug("_get_quote_today_126(): yestclose=%.2f, updown=%.2f => %%%.2f",
+                         data["yestclose"], data["updown"], data["updown"]*100.0/data["yestclose"])
+
         return { "Open" : data["open"],
                  "High" : data["high"],
                  "Low"  : data["low"],
@@ -177,17 +180,17 @@ def search_stock(symbol):
 if __name__ == "__main__":
     import common
     common.probe_proxy()
-    log.init()
+    log.init(logging.DEBUG)
 
     symbol = "300077.SZ"
     code = "1%s" % (symbol[:6], )
 
-    hist = get_data(code)
-    print hist.head()
-    print hist.tail()
-
     quote = get_quote_today(code)
     print quote
+    sys.exit(0)
+
+    hist = get_data(code)
+    print hist.tail()
 
     quote = get_quote_today(code, source="163")
     print quote
