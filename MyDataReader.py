@@ -55,7 +55,7 @@ def MyDataReader(symbol, start=None, end=None):
             row_today = yhoo.get_quote_today(symbol)
             row_today = map(float, row_today[2:]) if row_today else None
 
-    if row_today:
+    if not row_today is None:
         df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
                               columns=COLUMNS, dtype=float)
         df.ix[0] = row_today
@@ -76,8 +76,10 @@ if __name__ == "__main__":
     # http://www.csrc.gov.cn/pub/newsite/scb/ssgshyfljg/201401/W020140102326518754522.pdf # 行业分类
 
     symbol = "000001.SS"
+    symbol = "600489.SS"
     hist = MyDataReader(symbol)
     print hist.tail()
+    sys.exit(0)
 
     symbol = "300382.SZ"
     hist = MyDataReader(symbol)
