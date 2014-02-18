@@ -7,8 +7,8 @@ from StringIO import StringIO
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
-def init_plot():
-    plt.rcParams['figure.figsize'] = (20, 10)
+def init_plot(width=20, height=10):
+    plt.rcParams['figure.figsize'] = (width, height)
     plt.clf()
     ax = plt.gca()
     ax.set_xmargin(0.02)
