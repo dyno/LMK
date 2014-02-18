@@ -104,6 +104,7 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         # downward trend
         mask = ma.make_mask(history.index)
         mask = ma.masked_where(level <= BAND_SEC_REACT, mask)
+        #mask = ma.masked_where(level <= BAND_SEC_RALLY, mask)
         chosen = ma.masked_where(~mask.mask, close)
         if chosen.any():
             plt.plot(history.index, chosen, "r%s" % line, alpha=alpha)
@@ -137,6 +138,7 @@ class LMKBandBacktestCalculator(object):
         self.price = tick["Close"]
         try:
             #if int(tick["level"]) == BAND_UPWARD:
+            #if int(tick["level"]) >= BAND_NAT_RALLY:
             if int(tick["level"]) >= BAND_SEC_RALLY:
                 if not self.first_trend_skipped: return
 
@@ -166,7 +168,8 @@ class LMKBandBacktestCalculator(object):
                         self.last_value_rate = value_rate
 
             #if int(tick["level"]) == BAND_DNWARD:
-            if int(tick["level"]) <= BAND_NAT_REACT:
+            #if int(tick["level"]) <= BAND_NAT_REACT:
+            if int(tick["level"]) <= BAND_SEC_REACT:
                 self.first_trend_skipped = True
 
                 self.try_first_hand = True
