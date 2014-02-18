@@ -87,8 +87,12 @@ def main():
     freq="W-FRI" #"D"
     plot_width= 7 #1
     freq="D" #"D"
-    plot_width = 1
+    plot_width = 0
     result = lmk_band_analysis(symbol, start="2013/6/1", no_volume=False, atr_factor=atr_factor, freq=freq, plot_width=plot_width)
+    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
+
+    atr_factor=1.0
+    result = lmk_analysis(symbol, start="2013/6/1", no_volume=False, atr_factor=atr_factor, freq=freq, plot=True)
     print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
     show_plot()
 #           000001.SS: atr_factor=2.0, freq=W-FRI, result={'LMKBand': 0.8696190000000009, 'LMK': 0.94849700000000214} *
