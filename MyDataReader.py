@@ -45,16 +45,17 @@ def MyDataReader(symbol, start=None, end=None):
     row_today = None
     if match_china:
         today = dt_beijing.date()
-        if (timedelta(days=1) <= today - last <= timedelta(days=7)
-                and dt_beijing.time() > datetime.time(hour=9)):
-            row_today = ntes.get_quote_today(code)
-            row_today = Series(row_today) if row_today else None
+        _time = dt_beijing.time()
+        get_quote_today = ntes.get_quote_today
     else:
         today = dt_newyork.date()
-        if (timedelta(days=1) <= today - last <= timedelta(days=7)
-                and dt_newyork.time() > datetime.time(hour=9)):
-            row_today = yhoo.get_quote_today(symbol)
-            row_today = map(float, row_today[2:]) if row_today else None
+        _time = dt_newyork.time()
+        get_quote_today = yhoo.get_quote_today
+
+    if (timedelta(days=1) <= today - last <= timedelta(days=7)
+            and _time > datetime.time(hour=9)):
+        row_today = get_quote_today(symbol)
+        row_today = Series(row_today) if row_today else None
 
     if not row_today is None:
         df = pandas.DataFrame(index=pandas.DatetimeIndex(start=today, end=today, freq="D"),
@@ -76,16 +77,17 @@ if __name__ == "__main__":
     # China Securities Regulatory Commission
     # http://www.csrc.gov.cn/pub/newsite/scb/ssgshyfljg/201401/W020140102326518754522.pdf # 行业分类
 
+    symbol = "000001.SS"
+    symbol = "600489.SS"
+    hist = MyDataReader(symbol)
+    print hist.tail()
+
     symbol = "AAPL"
     hist = MyDataReader(symbol)
     print hist.tail()
 
     sys.exit(0)
 
-    symbol = "000001.SS"
-    symbol = "600489.SS"
-    hist = MyDataReader(symbol)
-    print hist.tail()
 
     symbol = "300382.SZ"
     hist = MyDataReader(symbol)
