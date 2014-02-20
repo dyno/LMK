@@ -86,8 +86,8 @@ def _get_quote_today_126(code):
         start, end = data.find("(") + 1, data.find(")")
         data = data[start:end]
         data = json.loads(data)[code]
-        log.logger.debug("_get_quote_today_126(): yestclose=%.2f, updown=%.2f => %%%.2f",
-                         data["yestclose"], data["updown"], data["updown"]*100.0/data["yestclose"])
+        log.logger.info("%s: yestclose=%.2f, updown=%.2f => %%%.2f",
+                         code, data["yestclose"], data["updown"], data["updown"]*100.0/data["yestclose"])
 
         return { "Open" : data["open"],
                  "High" : data["high"],
@@ -99,11 +99,20 @@ def _get_quote_today_126(code):
     except HTTPError, e:
         log.logger.debug("open '%s' result error.\n%s", url, e)
 
+def sanitize(code):
+    if code.endswith(".SS"):
+        code = "0%s" % code[:6]
+    elif code.endswith(".SZ"):
+        code = "1%s" % code[:6]
+
+    return code
 
 #-----------------------------------------------------------------------
 ## public ##
 
 def get_quote_today(code, source="126"):
+    code = sanitize(code)
+
     if source == "126":
         return _get_quote_today_126(code)
     elif source == "163":
@@ -116,6 +125,7 @@ def get_data(code=None, start=None, end=None, retry_count=3,
                     pause=0.001, adjust_price=False, ret_index=False,
                     chunksize=25, name=None):
     start, end = _sanitize_dates(start, end)
+    code = sanitize(code)
 
     url = _HISTORICAL_163_URL % (code, start.strftime('%Y%m%d'), end.strftime('%Y%m%d'))
 
@@ -183,17 +193,13 @@ if __name__ == "__main__":
     log.init(logging.DEBUG)
 
     symbol = "300077.SZ"
-    code = "1%s" % (symbol[:6], )
-
-    quote = get_quote_today(code)
+    quote = get_quote_today(symbol)
     print quote
-    sys.exit(0)
+    quote = get_quote_today(symbol, source="163")
+    print quote
 
-    hist = get_data(code)
+    hist = get_data(symbol)
     print hist.tail()
-
-    quote = get_quote_today(code, source="163")
-    print quote
 
     stk = search_stock(symbol)
     print stk["name"]
