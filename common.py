@@ -7,12 +7,11 @@ from StringIO import StringIO
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
-def init_plot(width=20, height=10):
+def init_plot(width=20, height=10, title=""):
     plt.rcParams['figure.figsize'] = (width, height)
     plt.clf()
+    if title: plt.title(title)
     ax = plt.gca()
-    ax.set_xmargin(0.02)
-    ax.set_ymargin(0.02)
 
 def show_plot(filename=""):
     #days = WeekdayLocator(MONDAY)

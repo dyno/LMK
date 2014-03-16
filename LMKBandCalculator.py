@@ -66,7 +66,7 @@ class LMKBandCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1):
+def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1, show_volume=True, height_factor=1):
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
             BAND_DNWARD     : "rv",
@@ -78,11 +78,21 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         }
 
         close = history["Close"]
+        volume = history["Volume"]
         atr = history["ATR"] * atr_factor
         level = history["level"]
         trend = history["trend"]
         resistance = history["resistance"]
         support = history["support"]
+
+        ax = plt.gca()
+        ax.set_xmargin(0.02)
+        #ax.set_ymargin(0.2)
+        min_close = min(close)
+        height = min_close * height_factor
+        ymin =  min_close - height / 4.0 #
+        ymax = ymin + height # ymax - ymin = min_close * 2 + (min_close * 2 / 4.0)
+        ax.set_ylim(ymin, ymax)
 
         for band in range(BAND_DNWARD, BAND_UPWARD + 1):
             mask = ma.make_mask(history.index)
@@ -91,23 +101,39 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
             # "ValueError: putmask: mask and data must be the same size" is a numpy bug.
             # using virtual env.
             if chosen.any():
-                plt.plot(history.index, chosen, style_dict[band], alpha=alpha)
+                ax.plot(history.index, chosen, style_dict[band], alpha=alpha)
+
+        #print ax.get_xlim()
+        ax2 = plt.gca().twinx()
+        ymax = max(volume) * 5
+        ymin = min(volume)
+        ax2.set_ylim(ymin, ymax)
+
+        ax2.set_xlim(ax.get_xlim())
+        ax2.get_xaxis().set_visible(False)
 
         # upward trend
         mask = ma.make_mask(history.index)
         mask = ma.masked_where(level >= BAND_SEC_RALLY, mask)
         #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
         chosen = ma.masked_where(~mask.mask, close)
+        chosen_volume = ma.masked_where(~mask.mask, volume)
+        # warnings.warn("Warning: converting a masked element to nan.")
+        chosen_volume = ma.filled(chosen_volume, 0)
         if chosen.any():
-            plt.plot(history.index, chosen, "g%s" % line, alpha=alpha)
+            ax.plot(history.index, chosen, "g%s" % line, alpha=alpha)
+            ax2.bar(history.index, chosen_volume, width=band_width, align="center", color="g", alpha=.5)
 
         # downward trend
         mask = ma.make_mask(history.index)
         mask = ma.masked_where(level <= BAND_SEC_REACT, mask)
         #mask = ma.masked_where(level <= BAND_SEC_RALLY, mask)
         chosen = ma.masked_where(~mask.mask, close)
+        chosen_volume = ma.masked_where(~mask.mask, volume)
+        chosen_volume = ma.filled(chosen_volume, 0)
         if chosen.any():
-            plt.plot(history.index, chosen, "r%s" % line, alpha=alpha)
+            ax.plot(history.index, chosen, "r%s" % line, alpha=alpha)
+            ax2.bar(history.index, chosen_volume, width=band_width, align="center", color="r", alpha=.5)
 
         if show_band:
             top = history.apply(lambda r: r["resistance"] if r["trend"] == TREND_UPWARD else r["support"] + r["ATR"] * atr_factor, axis=1)
@@ -118,8 +144,9 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
                 if chosen.any():
                     # http://www.w3schools.com/html/html_colornames.asp
                     for i, color in enumerate(["darkgreen", "chartreuse", "beige", "yellow", "orange", "red"]):
-                        plt.bar(top.index, height, bottom=(top - (i + 1) * height),
-                                width=band_width, color=color, edgecolor=color, alpha=alpha * .2)
+                        ax.bar(top.index, height, bottom=(top - (i + 1) * height),
+                                width=band_width, align="edge", color=color, edgecolor=color, alpha=alpha * .2)
+
 
 #--------------------------------------------------------------------------------
 class LMKBandBacktestCalculator(object):
@@ -204,6 +231,11 @@ class LMKBandBacktestCalculator(object):
         return (self.amount * self.price + self.cash) / self.fund
 
 if __name__ == "__main__":
+    import sys
+
+    #import warnings
+    #warnings.simplefilter('error', UserWarning)
+
     import pandas
     from pandas.io.data import DataReader
 
@@ -215,10 +247,12 @@ if __name__ == "__main__":
     probe_proxy()
     log.init()
 
-    stk = Stock("^GSPC")
-    stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)
-    #stk = Stock("VMW")
-    #stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
+    #stk = Stock("^GSPC")
+    #stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)
+    stk = Stock("002237.SZ")
+    stk.retrieve_history(start="2013/1/1", use_cache=True, no_volume=False)
+    stk = Stock("VMW")
+    stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
 
     history = stk.history
     atr_factor = 2.0
@@ -248,8 +282,8 @@ if __name__ == "__main__":
     lmk_band = history.apply(c, axis=1)
     history = pandas.merge(history, lmk_band, left_index=True, right_index=True, sort=False)
 
-    c = LMKBandBacktestCalculator()
-    history.apply(c, axis=1)
+    #c = LMKBandBacktestCalculator()
+    #history.apply(c, axis=1)
 
     plot_lmk_band(history, atr_factor=atr_factor, show_band=True, band_width=7)
     show_plot()
