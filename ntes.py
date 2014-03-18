@@ -93,7 +93,7 @@ def _get_quote_today_126(code):
                  "High" : data["high"],
                  "Low"  : data["low"],
                  "Close": data["yestclose"] + data["updown"],
-                 "Volume": data["volume"] / 100,
+                 "Volume": data["volume"],
                  "Adj Close" : data["yestclose"] + data["updown"],
                 }
     except HTTPError, e:
