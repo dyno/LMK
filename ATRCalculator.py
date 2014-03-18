@@ -1,20 +1,31 @@
+import log
+
 class ATRCalculator(object):
-    def __init__(self, atr_period):
+    def __init__(self, atr_period, fluct_limit=0.2):
         self.atr_period = atr_period
         self.tr_list = []
         self.last_tick = None
         self.atr = None
+        self.fluct_limit = fluct_limit
 
     def __call__(self, tick):
         # if not self.last_tick:
         # => ValueError: 'The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()'
+        HL = tick["High"] - tick["Low"]
         if not self.last_tick is None:
-            HL = tick["High"] - tick["Low"]
             HCp = abs(tick["High"] - self.last_tick["Close"])
             LCp = abs(tick["Low"] - self.last_tick["Close"])
             tr = max(HL, HCp, LCp)
+
+            # stock devidend
+            if self.fluct_limit > 0:
+                if tr / self.last_tick["Close"] > self.fluct_limit:
+                    log.logger.debug("%s: %.2f(tr) / %.2f(close) = %.2f > self.fluct_limit",
+                                     repr(tick), tr, self.last_tick["Close"], tr / self.last_tick["Close"])
+                    self.tr_list = []
+                    tr = HL
         else:
-            tr = tick["High"] - tick["Low"]
+            tr = HL
 
         self.last_tick = tick.copy()
 
@@ -29,11 +40,24 @@ class ATRCalculator(object):
         return self.atr
 
 if __name__ == "__main__":
-    from pandas.io.data import DataReader
+    from common import probe_proxy
+    from stock import Stock
+
+    probe_proxy()
+    log.init()
 
     # http://stockcharts.com/help/doku.php?id=chart_school:technical_indicators:average_true_range_a
-    history = DataReader("QQQ", "yahoo", start="2010/4/1", end="2010/5/13")
-    c = ATRCalculator(atr_period=14)
+#    stk = Stock("QQQ")
+#    stk.retrieve_history(start="2010/4/1", use_cache=False, no_volume=True)
+#    history = stk.history
+#    c = ATRCalculator(atr_period=14)
+#    history["ATR"] = history.apply(c, axis=1)
+#    print history["ATR"].loc["2010-4-21":]
+
+    stk = Stock("300027.SZ")
+    stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
+    history = stk.history
+    c = ATRCalculator(atr_period=14, fluct_limit=0.2)
     history["ATR"] = history.apply(c, axis=1)
-    print history["ATR"].loc["2010-4-21":]
+    print history["ATR"]
 
