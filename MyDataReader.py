@@ -85,7 +85,6 @@ if __name__ == "__main__":
     symbol = "AAPL"
     hist = MyDataReader(symbol)
     print hist.tail()
-
     sys.exit(0)
 
 
