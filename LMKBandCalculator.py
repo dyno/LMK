@@ -66,7 +66,7 @@ class LMKBandCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1, show_volume=True, height_factor=1):
+def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1, show_volume=True, fluct_factor=2):
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
             BAND_DNWARD     : "rv",
@@ -89,7 +89,7 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         ax.set_xmargin(0.02)
         #ax.set_ymargin(0.2)
         min_close = min(close)
-        height = min_close * height_factor
+        height = min_close * fluct_factor
         ymin =  min_close - height / 4.0 #
         ymax = ymin + height # ymax - ymin = min_close * 2 + (min_close * 2 / 4.0)
         ax.set_ylim(ymin, ymax)
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     #stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)
     stk = Stock("002237.SZ")
     stk.retrieve_history(start="2013/1/1", use_cache=True, no_volume=False)
-    stk = Stock("VMW")
+    stk = Stock("WUBA")
     stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
 
     history = stk.history

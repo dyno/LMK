@@ -204,7 +204,7 @@ class LMKCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk(history):
+def plot_lmk(history, show_volume=True, fluct_factor=2.0):
     style_dict = {
         BAND_DNWARD     : "rv",
         BAND_NAT_REACT  : "m<",
@@ -213,6 +213,15 @@ def plot_lmk(history):
         BAND_NAT_RALLY  : "c>",
         BAND_UPWARD     : "g^",
     }
+
+    ax = plt.gca()
+    ax.set_xmargin(0.02)
+    #ax.set_ymargin(0.2)
+    min_close = min(history["Close"])
+    height = min_close * fluct_factor
+    ymin =  min_close - height / 4.0 #
+    ymax = ymin + height # ymax - ymin = min_close * 2 + (min_close * 2 / 4.0)
+    ax.set_ylim(ymin, ymax)
 
     for band in range(BAND_DNWARD, BAND_UPWARD + 1):
         mask = ma.make_mask(history.index)
@@ -236,7 +245,18 @@ def plot_lmk(history):
         #mask = ma.masked_where(np.isfinite(line), mask)
         chosen = ma.masked_invalid(series[line])
         if chosen.any():
-            plt.plot(history.index, chosen, style_dict[line], drawstyle="steps-mid", alpha=.5)
+            plt.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=.3)
+
+    # volume
+    if show_volume:
+        ax2 = plt.gca().twinx()
+        ymax = max(history["Volume"]) * 5
+        ymin = min(history["Volume"])
+        ax2.set_ylim(ymin, ymax)
+        ax2.set_xlim(ax.get_xlim())
+        ax2.get_xaxis().set_visible(False)
+
+        ax2.bar(history.index, history["Volume"], color="b", alpha=.5)
 
 
 #--------------------------------------------------------------------------------
@@ -327,34 +347,30 @@ if __name__ == "__main__":
 
     from ATRCalculator import ATRCalculator
     from InitialPivotalPointCalculator import InitialPivotalPointCalculator
-    from common import show_plot
+    from common import init_plot, show_plot, probe_proxy
     from stock import Stock
 
+    probe_proxy()
     log.init()
 
     #stk = Stock("000001.SS")
-    stk = Stock("^GSPC")
-    stk.retrieve_history(start="2000/1/1", use_cache=False, no_volume=True)
+    #stk = Stock("^GSPC")
+    #stk = Stock("GLD")
+    #stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=True)
     #stk = Stock("VMW")
-    #stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
+    stk = Stock("600547.SS")
+    stk.retrieve_history(start="2013/10/10", use_cache=False, no_volume=False)
 
     history = stk.history
-    atr_factor = 1.0
-
-    #history = DataReader("AAPL", "yahoo", start="2012/9/1")
-    #history = DataReader("TWTR", "yahoo", start="2012/9/1")
-    #history = DataReader("FB", "yahoo", start="2012/9/1")
-    #history = DataReader("AMZN", "yahoo", start="2012/9/1")
-    #history = DataReader("TSLA", "yahoo", start="2012/9/1")
-    #history = DataReader("VMW", "yahoo", start="2012/9/1")
+    atr_factor = 2.0
 
     #history.dropna(axis=0, inplace=True)
     c = ATRCalculator(atr_period=14)
     history["ATR"] = history.apply(c, axis=1)
     history.fillna(method="backfill", axis=0, inplace=True)
 
-    stk.resample_history(freq="W-FRI")
-    history = stk.history
+    #stk.resample_history(freq="W-FRI")
+    #history = stk.history
 
     c = InitialPivotalPointCalculator(atr_factor=atr_factor)
     history.apply(c, axis=1)
@@ -366,6 +382,7 @@ if __name__ == "__main__":
     c = LMKBacktestCalculator()
     history.apply(c, axis=1)
 
+    init_plot()
     plot_lmk(history)
     show_plot()
 
