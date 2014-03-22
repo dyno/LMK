@@ -103,6 +103,13 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
             if chosen.any():
                 ax.plot(history.index, chosen, style_dict[band], alpha=alpha)
 
+        #the ODR
+        mask = ma.make_mask(history.index)
+        mask = ma.masked_where(history["ODR"] == True, mask)
+        chosen = ma.masked_where(~mask.mask, close)
+        if chosen.any():
+            ax.plot(history.index, chosen, "ro", alpha=alpha*1.1)
+
         #print ax.get_xlim()
         ax2 = plt.gca().twinx()
         ymax = max(volume) * 5
@@ -249,10 +256,10 @@ if __name__ == "__main__":
 
     #stk = Stock("^GSPC")
     #stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)
-    stk = Stock("002237.SZ")
-    stk.retrieve_history(start="2013/1/1", use_cache=True, no_volume=False)
+    #stk = Stock("002237.SZ")
+    #stk.retrieve_history(start="2013/1/1", use_cache=True, no_volume=False)
     stk = Stock("WUBA")
-    stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=False)
+    stk.retrieve_history(start="2013/6/1", use_cache=False, no_volume=False)
 
     history = stk.history
     atr_factor = 2.0

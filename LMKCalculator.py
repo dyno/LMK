@@ -247,6 +247,13 @@ def plot_lmk(history, show_volume=True, fluct_factor=2.0):
         if chosen.any():
             plt.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=.3)
 
+    #the ODR
+    mask = ma.make_mask(history.index)
+    mask = ma.masked_where(history["ODR"] == True, mask)
+    chosen = ma.masked_where(~mask.mask, history["Close"])
+    if chosen.any():
+        ax.plot(history.index, chosen, "ro", alpha=1.0)
+
     # volume
     if show_volume:
         ax2 = plt.gca().twinx()

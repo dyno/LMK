@@ -10,6 +10,7 @@ from pandas import HDFStore, DataFrame
 import log
 from MyDataReader import MyDataReader
 from ATRCalculator import ATRCalculator
+from ODRCalculator import ODRCalculator
 
 #--------------------------------------------------------------------------------
 class Stock(object):
@@ -44,6 +45,9 @@ class Stock(object):
         self.history_daily["ATR"] = self.history_daily.apply(c, axis=1)
         self.history_daily.fillna(method="backfill", axis=0, inplace=True)
 
+        c = ODRCalculator(threshhold=.01)
+        self.history_daily["ODR"] = self.history_daily.apply(c, axis=1)
+
         # slice data between requested period, history has to be sorted
         # http://stackoverflow.com/questions/16175874/python-pandas-dataframe-slicing-by-date-conditions
         start = pandas.to_datetime(start)
@@ -59,8 +63,12 @@ class Stock(object):
         history_resampled["Open"] = self.history["Open"].resample(freq, how="first")
         history_resampled["High"] = self.history["High"].resample(freq, how="max")
         history_resampled["Low"] = self.history["Low"].resample(freq, how="min")
+        history_resampled["Volume"] = self.history["Volume"].resample(freq, how="sum")
         assert "ATR" in self.history.columns, "ATR needs to be processed in daily data!"
         history_resampled["ATR"] = self.history["ATR"].resample(freq, how="last")
+        c = ODRCalculator(threshhold=.01)
+        history_resampled["ODR"] = history_resampled.apply(c, axis=1)
+
         # e.g. the spring festival week
         #self.history_resampled.fillna(method="ffill", inplace=True)
         dropped = history_resampled.dropna(axis=0, inplace=True)
