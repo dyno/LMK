@@ -14,18 +14,19 @@ def init_plot(width=20, height=10, title=""):
     ax = plt.gca()
 
 def show_plot(filename=""):
-    #days = WeekdayLocator(MONDAY)
-    days = WeekdayLocator(FRIDAY)
+    days = WeekdayLocator(MONDAY)
+    #days = WeekdayLocator(FRIDAY)
+    dayFmt = DateFormatter("%m/%d")
     months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
-    monthsFmt = DateFormatter("%b%y")
-    dayFmt = DateFormatter("%d")
+    monthFmt = DateFormatter("\n\n%b/%Y")
+    #years =
 
     ax = plt.gca()
     #fig, ax = plt.subplots()
-    ax.xaxis.set_major_locator(months)
-    ax.xaxis.set_major_formatter(monthsFmt)
-    #ax.xaxis.set_minor_locator(days)
-    #ax.xaxis.set_minor_formatter(dayFmt)
+    ax.xaxis.set_major_locator(days)
+    ax.xaxis.set_major_formatter(dayFmt)
+    ax.xaxis.set_minor_locator(months)
+    ax.xaxis.set_minor_formatter(monthFmt)
     ax.grid(True)
     ax.xaxis.grid(True, which='major')
     #ax.xaxis.grid(True, which='minor')
