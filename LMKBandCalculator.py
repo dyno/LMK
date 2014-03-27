@@ -89,9 +89,14 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         ax.set_xmargin(0.02)
         #ax.set_ymargin(0.2)
         min_close = min(close)
+        max_close = max(close)
         height = min_close * fluct_factor
         ymin =  min_close - height / 4.0 #
         ymax = ymin + height # ymax - ymin = min_close * 2 + (min_close * 2 / 4.0)
+        if ymax < max_close:
+            ymax = max_close
+            height = ymax - min_close
+            ymin = min_close - height / 4.0
         ax.set_ylim(ymin, ymax)
 
         for band in range(BAND_DNWARD, BAND_UPWARD + 1):
@@ -103,12 +108,6 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
             if chosen.any():
                 ax.plot(history.index, chosen, style_dict[band], alpha=alpha)
 
-        #the ODR
-        mask = ma.make_mask(history.index)
-        mask = ma.masked_where(history["ODR"] == True, mask)
-        chosen = ma.masked_where(~mask.mask, close)
-        if chosen.any():
-            ax.plot(history.index, chosen, "ro", alpha=alpha*1.1)
 
         #print ax.get_xlim()
         ax2 = plt.gca().twinx()
@@ -130,6 +129,13 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         if chosen.any():
             ax.plot(history.index, chosen, "g%s" % line, alpha=alpha)
             ax2.bar(history.index, chosen_volume, width=band_width, align="center", color="g", alpha=.5)
+
+        #the ODR
+        mask = ma.make_mask(history.index)
+        mask = ma.masked_where(history["ODR"] == True, mask)
+        chosen = ma.masked_where(~mask.mask, close)
+        if chosen.any():
+            ax.plot(history.index, chosen, "rx", markersize=10, markeredgewidth=2, alpha=1.0)
 
         # downward trend
         mask = ma.make_mask(history.index)

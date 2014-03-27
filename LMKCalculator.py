@@ -218,9 +218,14 @@ def plot_lmk(history, show_volume=True, fluct_factor=2.0):
     ax.set_xmargin(0.02)
     #ax.set_ymargin(0.2)
     min_close = min(history["Close"])
+    max_close = max(history["Close"])
     height = min_close * fluct_factor
     ymin =  min_close - height / 4.0 #
     ymax = ymin + height # ymax - ymin = min_close * 2 + (min_close * 2 / 4.0)
+    if ymax < max_close:
+        ymax = max_close
+        height = ymax - min_close
+        ymin = min_close - height / 4.0
     ax.set_ylim(ymin, ymax)
 
     for band in range(BAND_DNWARD, BAND_UPWARD + 1):
@@ -252,7 +257,7 @@ def plot_lmk(history, show_volume=True, fluct_factor=2.0):
     mask = ma.masked_where(history["ODR"] == True, mask)
     chosen = ma.masked_where(~mask.mask, history["Close"])
     if chosen.any():
-        ax.plot(history.index, chosen, "ro", alpha=1.0)
+        ax.plot(history.index, chosen, "rx", markersize=10, markeredgewidth=2, alpha=1.0)
 
     # volume
     if show_volume:

@@ -45,7 +45,7 @@ class Stock(object):
         self.history_daily["ATR"] = self.history_daily.apply(c, axis=1)
         self.history_daily.fillna(method="backfill", axis=0, inplace=True)
 
-        c = ODRCalculator(threshhold=.01)
+        c = ODRCalculator(price_threshhold=.01)
         self.history_daily["ODR"] = self.history_daily.apply(c, axis=1)
 
         # slice data between requested period, history has to be sorted
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     log.init()
 
     #for symbol in ("YOKU", "399006.SZ", "000001.SS"):
-    for symbol in ("000001.SS",):
+    for symbol in ("YOKU", "NTES"):
         stk = Stock(symbol)
         stk.retrieve_history(start="1/1/2013", use_cache=False, no_volume=True)
         print symbol
