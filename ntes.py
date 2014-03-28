@@ -93,7 +93,8 @@ def _get_quote_today_126(code):
                  "High" : data["high"],
                  "Low"  : data["low"],
                  "Close": data["yestclose"] + data["updown"],
-                 "Volume": data["volume"],
+                 # 历史数据: 指数(手), 普通股票(股)
+                 "Volume": data["volume"] if data["open"] < 500 else data["volume"] / 100,
                  "Adj Close" : data["yestclose"] + data["updown"],
                 }
     except HTTPError, e:

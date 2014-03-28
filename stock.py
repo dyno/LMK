@@ -39,6 +39,11 @@ class Stock(object):
         if not no_volume: # index like 000001.SS has no volume data
             # suspension - no trading event
             self.history_daily = self.history_daily[self.history_daily["Volume"] != 0]
+            # filter out extra big numbers like ^IXIC in 2013-12-30
+            volume = self.history_daily["Volume"]
+            volume_sum = sum(volume)
+            persent_threshhold = 1.0 * 6.0 / len(volume)
+            self.history_daily = self.history_daily[(volume / volume_sum) < persent_threshhold]
 
         # process ATR
         c = ATRCalculator(atr_period=20)
@@ -66,7 +71,7 @@ class Stock(object):
         history_resampled["Volume"] = self.history["Volume"].resample(freq, how="sum")
         assert "ATR" in self.history.columns, "ATR needs to be processed in daily data!"
         history_resampled["ATR"] = self.history["ATR"].resample(freq, how="last")
-        c = ODRCalculator(threshhold=.01)
+        c = ODRCalculator(price_threshhold=.01)
         history_resampled["ODR"] = history_resampled.apply(c, axis=1)
 
         # e.g. the spring festival week
@@ -87,10 +92,14 @@ if __name__ == "__main__":
     log.init()
 
     #for symbol in ("YOKU", "399006.SZ", "000001.SS"):
-    for symbol in ("YOKU", "NTES"):
+    #for symbol in ("YOKU", "NTES"):
+    #for symbol in ("^IXIC",):
+    for symbol in ("WUBA",):
         stk = Stock(symbol)
-        stk.retrieve_history(start="1/1/2013", use_cache=False, no_volume=True)
+        stk.retrieve_history(start="1/1/2013", use_cache=False, no_volume=False)
         print symbol
-        print stk.history.head()
+        #print stk.history.head()
         print stk.history.tail()
-
+        #volume = stk.history_daily["Volume"]
+        #_len = len(volume)
+        #print stk.history_daily[stk.history_daily["Volume"] / sum(volume) > (1.0 * 2 / _len)]

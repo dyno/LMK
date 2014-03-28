@@ -7,6 +7,7 @@ from datetime import date, datetime
 
 import log
 from stock import Stock
+from constants import *
 from common import init_plot, show_plot
 from LMKCalculator import LMKCalculator, LMKBacktestCalculator, plot_lmk
 from LMKBandCalculator import LMKBandCalculator, LMKBandBacktestCalculator, plot_lmk_band
@@ -47,8 +48,17 @@ def lmk_band_analysis(stk, atr_factor=2.0, plot_width=0, fluct_factor=1.0):
     lmk_band = history.apply(c, axis=1)
     history = pandas.merge(history, lmk_band, left_index=True, right_index=True, sort=False)
     last = history.ix[-1]
+    if last["trend"] == TREND_UPWARD:
+        resistance = last["resistance"]
+        support = resistance - last["ATR"] * atr_factor
+    else:
+        support = last["support"]
+        resistance = support + last["ATR"] * atr_factor
+
+    _break = (support + resistance) / 2.0
+
     log.logger.info("%s: close=%.2f, support=%.2f, resistance=%.2f, break=%.2f",
-                    last.name.strftime("%Y-%m-%d"), last["Close"], last["support"], last["resistance"], (last["support"] + last["resistance"]) / 2.0)
+                    last.name.strftime("%Y-%m-%d"), last["Close"], support, resistance, _break)
 
     c = LMKBandBacktestCalculator()
     history.apply(c, axis=1)
@@ -83,6 +93,7 @@ def main():
     symbol = "300369.SZ"
     symbol = "000001.SS"
     symbol = "600547.SS"
+    symbol = "WUBA"
     atr_factor=2.0
     freq="W-FRI" #"D"
     plot_width= 7 #1
@@ -93,8 +104,10 @@ def main():
 #    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
 
     stk = Stock(symbol)
-    stk.retrieve_history(start="2013/1/1", end="2014/3/26", use_cache=True, no_volume=False)
+    stk.retrieve_history(start="2013/1/1", end=datetime.today(), use_cache=False, no_volume=False)
     stk.resample_history(freq=freq)
+    print stk.history.tail()
+    sys.exit(0)
 
     result = [1,1]
     init_plot(width=19.0, height=3.0, title=symbol)

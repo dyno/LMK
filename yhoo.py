@@ -26,7 +26,7 @@ def get_quote_today(symbol):
                         "High" : float(row[3]),
                         "Low"  : float(row[4]),
                         "Close": float(row[5]),
-                        "Volume": int(row[6]),
+                        "Volume": int(row[6]) if int(row[6]) > 0 else 1, # index has no volume...
                         "Adj Close" : float(row[5]),
                         }
     except HTTPError, e:
@@ -42,5 +42,6 @@ if __name__ == "__main__":
     log.init(logging.DEBUG)
 
     print get_quote_today("TSLA")
-    print get_quote_today("TWTR")
+    print get_quote_today("WUBA")
+    print get_quote_today("^IXIC")
 
