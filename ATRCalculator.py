@@ -9,9 +9,10 @@ class ATRCalculator(object):
         self.fluct_limit = fluct_limit
 
     def __call__(self, tick):
+        HL = tick["High"] - tick["Low"]
+
         # if not self.last_tick:
         # => ValueError: 'The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()'
-        HL = tick["High"] - tick["Low"]
         if not self.last_tick is None:
             HCp = abs(tick["High"] - self.last_tick["Close"])
             LCp = abs(tick["Low"] - self.last_tick["Close"])
