@@ -13,25 +13,22 @@ def init_plot(width=20, height=10, title=""):
     if title: plt.title(title)
     ax = plt.gca()
 
+    ax.grid(True)
+    #ax.xaxis.grid(True, which='major')
+    plt.xticks(rotation=25)
+
 def show_plot(filename=""):
     days = WeekdayLocator(MONDAY)
     #days = WeekdayLocator(FRIDAY)
     dayFmt = DateFormatter("%m/%d")
     months  = MonthLocator(range(1, 13), bymonthday=1, interval=1) # every month
-    monthFmt = DateFormatter("\n\n%b/%Y")
-    #years =
+    monthFmt = DateFormatter("\n\n\n%b/%Y")
 
     ax = plt.gca()
-    #fig, ax = plt.subplots()
     ax.xaxis.set_major_locator(days)
     ax.xaxis.set_major_formatter(dayFmt)
     ax.xaxis.set_minor_locator(months)
     ax.xaxis.set_minor_formatter(monthFmt)
-    ax.grid(True)
-    ax.xaxis.grid(True, which='major')
-    #ax.xaxis.grid(True, which='minor')
-
-    plt.xticks(rotation=25)
 
     if not filename:
         plt.show()

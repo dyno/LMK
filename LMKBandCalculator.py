@@ -66,7 +66,7 @@ class LMKBandCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False, band_width=1, show_volume=True, fluct_factor=2):
+def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, band_width=1, show_errorbar=False, show_band=True, fluct_factor=2):
         # http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.plot
         style_dict = {
             BAND_DNWARD     : "rv",
@@ -79,6 +79,8 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
 
         close = history["Close"]
         volume = history["Volume"]
+        high = history["High"]
+        low = history["Low"]
         atr = history["ATR"] * atr_factor
         level = history["level"]
         trend = history["trend"]
@@ -119,16 +121,26 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
         ax2.get_xaxis().set_visible(False)
 
         # upward trend
+        ecolor="gray"
         mask = ma.make_mask(history.index)
         mask = ma.masked_where(level >= BAND_SEC_RALLY, mask)
         #mask = ma.masked_where(level >= BAND_SEC_REACT, mask)
         chosen = ma.masked_where(~mask.mask, close)
+        chosen_filled = ma.filled(chosen, 0)
+        chosen_high = ma.masked_where(~mask.mask, high)
+        chosen_high_filled = ma.filled(chosen_high, 0)
+        chosen_low = ma.masked_where(~mask.mask, low)
+        chosen_low_filled = ma.filled(chosen_low, 0)
         chosen_volume = ma.masked_where(~mask.mask, volume)
         # warnings.warn("Warning: converting a masked element to nan.")
-        chosen_volume = ma.filled(chosen_volume, 0)
+        chosen_volume_filled = ma.filled(chosen_volume, 0)
         if chosen.any():
             ax.plot(history.index, chosen, "g%s" % line, alpha=alpha)
-            ax2.bar(history.index, chosen_volume, width=band_width, align="center", color="g", alpha=.5)
+            if show_errorbar:
+                ax.errorbar(history.index, chosen_filled,
+                            yerr=[chosen_filled - chosen_low_filled, chosen_high_filled - chosen_filled],
+                            ecolor=ecolor, fmt='.', alpha=.8)
+            ax2.bar(history.index, chosen_volume_filled, width=band_width, align="center", color="blue", alpha=.5)
 
         #the ODR
         mask = ma.make_mask(history.index)
@@ -138,17 +150,27 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, show_band=False,
             ax.plot(history.index, chosen, "rx", markersize=10, markeredgewidth=2, alpha=1.0)
 
         # downward trend
+        #ecolor="gray"
         mask = ma.make_mask(history.index)
         mask = ma.masked_where(level <= BAND_SEC_REACT, mask)
         #mask = ma.masked_where(level <= BAND_SEC_RALLY, mask)
         chosen = ma.masked_where(~mask.mask, close)
+        #chosen = ma.filled(chosen, 0)
+        chosen_high = ma.masked_where(~mask.mask, high)
+        chosen_high_filled = ma.filled(chosen_high, 0)
+        chosen_low = ma.masked_where(~mask.mask, low)
+        chosen_low_filled = ma.filled(chosen_low, 0)
         chosen_volume = ma.masked_where(~mask.mask, volume)
-        chosen_volume = ma.filled(chosen_volume, 0)
+        chosen_volume_filled = ma.filled(chosen_volume, 0)
         if chosen.any():
             ax.plot(history.index, chosen, "r%s" % line, alpha=alpha)
-            ax2.bar(history.index, chosen_volume, width=band_width, align="center", color="r", alpha=.5)
+            if show_errorbar:
+                ax.errorbar(history.index, chosen_filled,
+                            yerr=[chosen_filled - chosen_low_filled, chosen_high_filled - chosen_filled],
+                            ecolor=ecolor, fmt='.', alpha=.8)
+            ax2.bar(history.index, chosen_volume_filled, width=band_width, align="center", color="gray", alpha=.5)
 
-        if show_band:
+        if show_band and band_width > 0:
             top = history.apply(lambda r: r["resistance"] if r["trend"] == TREND_UPWARD else r["support"] + r["ATR"] * atr_factor, axis=1)
             for _trend in (TREND_UPWARD, TREND_DNWARD):
                 mask = ma.make_mask(history.index)
@@ -246,8 +268,8 @@ class LMKBandBacktestCalculator(object):
 if __name__ == "__main__":
     import sys
 
-    #import warnings
-    #warnings.simplefilter('error', UserWarning)
+    import warnings
+    warnings.simplefilter('error', UserWarning)
 
     import pandas
     from pandas.io.data import DataReader
@@ -298,7 +320,7 @@ if __name__ == "__main__":
     #c = LMKBandBacktestCalculator()
     #history.apply(c, axis=1)
 
-    plot_lmk_band(history, atr_factor=atr_factor, show_band=True, band_width=7)
+    plot_lmk_band(history, atr_factor=atr_factor, band_width=7)
     show_plot()
 
 

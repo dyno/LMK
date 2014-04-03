@@ -204,8 +204,8 @@ class LMKCalculator(object):
         log.logger.debug("NOT_REACHED()! stk=%s tick=%s", repr(self.__dict__), repr(tick))
 
 
-def plot_lmk(history, show_volume=True, fluct_factor=2.0):
-    style_dict = {
+def plot_lmk(history, band_width=1, show_errorbar=False, fluct_factor=2.0):
+    style_dict_band = {
         BAND_DNWARD     : "rv",
         BAND_NAT_REACT  : "m<",
         BAND_SEC_REACT  : "m*",
@@ -229,19 +229,36 @@ def plot_lmk(history, show_volume=True, fluct_factor=2.0):
     ax.set_ylim(ymin, ymax)
 
     for band in range(BAND_DNWARD, BAND_UPWARD + 1):
+        #ecolor = "g" if band > BAND_SEC_REACT else "r"
+        ecolor = "gray"
+
         mask = ma.make_mask(history.index)
         mask = ma.masked_where((history["band"] == band) & (history["recorded"] == True), mask)
         chosen = ma.masked_where(~mask.mask, history["Close"])
+        chosen = ma.filled(chosen, 0)
+        chosen_high = ma.masked_where(~mask.mask, history["High"])
+        chosen_high = ma.filled(chosen_high, 0)
+        chosen_low = ma.masked_where(~mask.mask, history["Low"])
+        chosen_low = ma.filled(chosen_low, 0)
         if chosen.any():
-            plt.plot(history.index, chosen, style_dict[band])
+            if show_errorbar:
+                ax.errorbar(history.index, chosen, yerr=[chosen - chosen_low, chosen_high - chosen], ecolor=ecolor, fmt='.')
+            ax.plot(history.index, chosen, style_dict_band[band])
 
         mask = ma.make_mask(history.index)
         mask = ma.masked_where((history["band"] == band) & (history["recorded"] == False), mask)
         chosen = ma.masked_where(~mask.mask, history["Close"])
+        chosen = ma.filled(chosen, 0)
+        chosen_high = ma.masked_where(~mask.mask, history["High"])
+        chosen_high = ma.filled(chosen_high, 0)
+        chosen_low = ma.masked_where(~mask.mask, history["Low"])
+        chosen_low = ma.filled(chosen_low, 0)
         if chosen.any():
-            plt.plot(history.index, chosen, style_dict[band], alpha=.2)
+            if show_errorbar:
+                ax.errorbar(history.index, chosen, yerr=[chosen - chosen_low, chosen_high - chosen], ecolor=ecolor, fmt='.', alpha=.2)
+            ax.plot(history.index, chosen, style_dict_band[band], alpha=.2)
 
-    style_dict = {"ur": "g-", "rr": "c-", "rs":"m-", "ds":"r-"}
+    style_dict = {"ur": "g-", "rr": "c-", "rs":"y-", "ds":"r-"}
     series = {"ur": history["upward_pivotal"], "rr": history["rally_resistance"],
               "rs": history["reaction_support"], "ds": history["dnward_pivotal"]}
 
@@ -250,25 +267,33 @@ def plot_lmk(history, show_volume=True, fluct_factor=2.0):
         #mask = ma.masked_where(np.isfinite(line), mask)
         chosen = ma.masked_invalid(series[line])
         if chosen.any():
-            plt.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=.3)
+            ax.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=.3)
 
     #the ODR
     mask = ma.make_mask(history.index)
     mask = ma.masked_where(history["ODR"] == True, mask)
     chosen = ma.masked_where(~mask.mask, history["Close"])
+    chosen = ma.filled(chosen, 0)
     if chosen.any():
         ax.plot(history.index, chosen, "rx", markersize=10, markeredgewidth=2, alpha=1.0)
 
-    # volume
-    if show_volume:
-        ax2 = plt.gca().twinx()
-        ymax = max(history["Volume"]) * 5
-        ymin = min(history["Volume"])
-        ax2.set_ylim(ymin, ymax)
-        ax2.set_xlim(ax.get_xlim())
-        ax2.get_xaxis().set_visible(False)
+    ax2 = plt.gca().twinx()
+    ymax = max(history["Volume"]) * 5
+    ymin = min(history["Volume"])
+    ax2.set_ylim(ymin, ymax)
+    ax2.set_xlim(ax.get_xlim())
+    ax2.get_xaxis().set_visible(False)
 
-        ax2.bar(history.index, history["Volume"], color="b", alpha=.5)
+    #Volume
+    for band in range(BAND_DNWARD, BAND_UPWARD + 1):
+        color = "b" if band > BAND_SEC_REACT else "gray"
+        mask = ma.make_mask(history.index)
+        mask = ma.masked_where(history["band"] == band, mask)
+        chosen = ma.masked_where(~mask.mask, history["Volume"])
+        chosen = ma.filled(chosen, 0)
+        if chosen.any():
+            #ax2.bar(history.index, chosen, color=style_dict_band[band][0], alpha=.5)
+            ax2.bar(history.index, chosen, width=band_width, color=color, alpha=.5)
 
 
 #--------------------------------------------------------------------------------
@@ -353,6 +378,9 @@ class LMKBacktestCalculator(object):
 
 
 if __name__ == "__main__":
+    import warnings
+    warnings.simplefilter('error', UserWarning)
+
     import pandas
     import matplotlib.pyplot as plt
     from pandas.io.data import DataReader
@@ -361,6 +389,7 @@ if __name__ == "__main__":
     from InitialPivotalPointCalculator import InitialPivotalPointCalculator
     from common import init_plot, show_plot, probe_proxy
     from stock import Stock
+
 
     probe_proxy()
     log.init()

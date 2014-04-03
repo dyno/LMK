@@ -15,7 +15,7 @@ from InitialPivotalPointCalculator import InitialPivotalPointCalculator
 
 # ------------------------------------------------------------------------------
 
-def lmk_analysis(stk, atr_factor=2, plot=False, fluct_factor=2.0):
+def lmk_analysis(stk, atr_factor=2, band_width=1, show_errorbar=False, fluct_factor=2.0):
     history = stk.history
 
     c = InitialPivotalPointCalculator(atr_factor=atr_factor)
@@ -30,15 +30,13 @@ def lmk_analysis(stk, atr_factor=2, plot=False, fluct_factor=2.0):
 
     c = LMKBacktestCalculator()
     history.apply(c, axis=1)
-
     result = c.value_rate()
 
-    if plot:
-        plot_lmk(history, fluct_factor=fluct_factor)
+    plot_lmk(history, band_width=band_width, show_errorbar=show_errorbar, fluct_factor=fluct_factor)
 
     return result
 
-def lmk_band_analysis(stk, atr_factor=2.0, plot_width=0, fluct_factor=1.0):
+def lmk_band_analysis(stk, atr_factor=2.0, band_width=0, show_errorbar=False, show_band=True, fluct_factor=1.0):
     history = stk.history
 
     c = InitialPivotalPointCalculator(atr_factor=atr_factor)
@@ -62,11 +60,9 @@ def lmk_band_analysis(stk, atr_factor=2.0, plot_width=0, fluct_factor=1.0):
 
     c = LMKBandBacktestCalculator()
     history.apply(c, axis=1)
-
     result = c.value_rate()
 
-    if plot_width:
-        plot_lmk_band(history, show_band=True, band_width=plot_width, fluct_factor=fluct_factor)
+    plot_lmk_band(history, band_width=band_width, show_errorbar=show_errorbar, show_band=show_band, fluct_factor=fluct_factor)
 
     return result
 
@@ -94,27 +90,23 @@ def main():
     symbol = "000001.SS"
     symbol = "600547.SS"
     symbol = "WUBA"
-    atr_factor=2.0
-    freq="W-FRI" #"D"
-    plot_width= 7 #1
-    freq="D" #"D"
-    plot_width = 1
+
+    atr_factor, freq, band_width =2.0, "D", 1
 #    result = lmk_band_analysis(symbol, start="2013/6/1", end=datetime.today(), no_volume=False,
-#                               atr_factor=atr_factor, freq=freq, plot_width=plot_width)
+#                               atr_factor=atr_factor, freq=freq, band_width=band_width)
 #    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
 
     stk = Stock(symbol)
-    stk.retrieve_history(start="2013/1/1", end=datetime.today(), use_cache=False, no_volume=False)
+    stk.retrieve_history(start="2013/12/10", end=datetime.today(), use_cache=False, no_volume=False)
     stk.resample_history(freq=freq)
     print stk.history.tail()
-    sys.exit(0)
 
     result = [1,1]
     init_plot(width=19.0, height=3.0, title=symbol)
     result[0] = lmk_analysis(stk, atr_factor=atr_factor/2.0, plot=True, fluct_factor=1.0)
-    #show_plot()
+    show_plot()
     init_plot(width=19.0, height=3.0, title=symbol)
-    result[1] = lmk_band_analysis(stk, atr_factor=atr_factor, plot_width=plot_width, fluct_factor=1.0)
+    result[1] = lmk_band_analysis(stk, atr_factor=atr_factor, band_width=band_width, fluct_factor=1.0)
     #show_plot()
 
     print "%s: atr_factor=%.1f, freq=%-5s, [lmk/band]=[%s]" % (
