@@ -27,8 +27,14 @@ def show_plot(filename=""):
     ax = plt.gca()
     ax.xaxis.set_major_locator(days)
     ax.xaxis.set_major_formatter(dayFmt)
-    ax.xaxis.set_minor_locator(months)
-    ax.xaxis.set_minor_formatter(monthFmt)
+    #print "ticks=%d" % len(ax.get_xticks())
+    if len(ax.get_xticks()) < 52:
+        ax.xaxis.set_minor_locator(months)
+        ax.xaxis.set_minor_formatter(monthFmt)
+    else:
+        ax.xaxis.set_major_locator(months)
+        monthFmt = DateFormatter("%b\n%Y")
+        ax.xaxis.set_major_formatter(monthFmt)
 
     if not filename:
         plt.show()
