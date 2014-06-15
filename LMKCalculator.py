@@ -228,54 +228,55 @@ def plot_lmk(history, band_width=1, show_errorbar=False, fluct_factor=2.0):
         ymin = min_close - height / 4.0
     ax.set_ylim(ymin, ymax)
 
-    for band in range(BAND_DNWARD, BAND_UPWARD + 1):
-        #ecolor = "g" if band > BAND_SEC_REACT else "r"
-        ecolor = "gray"
+    # price range
+    ecolor = "gray"
+    if show_errorbar:
+         ax.errorbar(history.index, history["Close"],
+                     yerr=[history["Close"] - history["Low"], history["High"] - history["Close"]],
+                     ecolor=ecolor, fmt=None, alpha=.5)
 
+    # band
+    style_dict = {"ur": "g-", "rr": "c-", "rs":"y-", "ds":"r-"}
+    series = {"ur": history["upward_pivotal"], "rr": history["rally_resistance"],
+              "rs": history["reaction_support"], "ds": history["dnward_pivotal"]}
+    for line in ("ur", "rr", "rs", "ds"):
+        mask = ma.make_mask(history.index)
+        #mask = ma.masked_where(np.isfinite(line), mask)
+        chosen = ma.masked_invalid(series[line])
+        alpha = 1 if line in ("rs", "rr") else .3
+        if chosen.any():
+            ax.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=alpha)
+
+    # points
+    for band in range(BAND_DNWARD, BAND_UPWARD + 1):
         mask = ma.make_mask(history.index)
         mask = ma.masked_where((history["band"] == band) & (history["recorded"] == True), mask)
         chosen = ma.masked_where(~mask.mask, history["Close"])
-        chosen = ma.filled(chosen, 0)
-        chosen_high = ma.masked_where(~mask.mask, history["High"])
-        chosen_high = ma.filled(chosen_high, 0)
-        chosen_low = ma.masked_where(~mask.mask, history["Low"])
-        chosen_low = ma.filled(chosen_low, 0)
         if chosen.any():
-            if show_errorbar:
-                ax.errorbar(history.index, chosen, yerr=[chosen - chosen_low, chosen_high - chosen], ecolor=ecolor, fmt='.')
             ax.plot(history.index, chosen, style_dict_band[band])
 
         mask = ma.make_mask(history.index)
         mask = ma.masked_where((history["band"] == band) & (history["recorded"] == False), mask)
         chosen = ma.masked_where(~mask.mask, history["Close"])
-        chosen = ma.filled(chosen, 0)
-        chosen_high = ma.masked_where(~mask.mask, history["High"])
-        chosen_high = ma.filled(chosen_high, 0)
-        chosen_low = ma.masked_where(~mask.mask, history["Low"])
-        chosen_low = ma.filled(chosen_low, 0)
         if chosen.any():
-            if show_errorbar:
-                ax.errorbar(history.index, chosen, yerr=[chosen - chosen_low, chosen_high - chosen], ecolor=ecolor, fmt='.', alpha=.2)
             ax.plot(history.index, chosen, style_dict_band[band], alpha=.2)
 
-    style_dict = {"ur": "g-", "rr": "c-", "rs":"y-", "ds":"r-"}
-    series = {"ur": history["upward_pivotal"], "rr": history["rally_resistance"],
-              "rs": history["reaction_support"], "ds": history["dnward_pivotal"]}
-
-    for line in ("ur", "rr", "rs", "ds"):
-        mask = ma.make_mask(history.index)
-        #mask = ma.masked_where(np.isfinite(line), mask)
-        chosen = ma.masked_invalid(series[line])
-        if chosen.any():
-            ax.plot(history.index, chosen, style_dict[line], drawstyle="steps-post", alpha=.3)
 
     #the ODR
     mask = ma.make_mask(history.index)
     mask = ma.masked_where(history["ODR"] == True, mask)
     chosen = ma.masked_where(~mask.mask, history["Close"])
-    chosen = ma.filled(chosen, 0)
+    #chosen = ma.filled(chosen, 0)
     if chosen.any():
         ax.plot(history.index, chosen, "rx", markersize=10, markeredgewidth=2, alpha=1.0)
+
+    #the Buy Point
+    mask = ma.make_mask(history.index)
+    mask = ma.masked_where(history["Buy"] == True, mask)
+    chosen = ma.masked_where(~mask.mask, history["Close"])
+    #chosen = ma.filled(chosen, 0)
+    if chosen.any():
+        ax.plot(history.index, chosen, "g+", markersize=10, markeredgewidth=2, alpha=1.0)
 
     ax2 = plt.gca().twinx()
     ymax = max(history["Volume"]) * 5
@@ -298,7 +299,7 @@ def plot_lmk(history, band_width=1, show_errorbar=False, fluct_factor=2.0):
 
 #--------------------------------------------------------------------------------
 class LMKBacktestCalculator(object):
-    def __init__(self, fund=10000.0, commission=9.9):
+    def __init__(self, fund=10000.0, commission=1.0):
         self.fund = self.cash = fund
         self.amount = 0
         self.commission = commission
@@ -399,7 +400,8 @@ if __name__ == "__main__":
     #stk = Stock("GLD")
     #stk.retrieve_history(start="2013/1/1", use_cache=False, no_volume=True)
     #stk = Stock("VMW")
-    stk = Stock("600547.SS")
+    #stk = Stock("600547.SS")
+    stk = Stock("HIMX")
     stk.retrieve_history(start="2013/10/10", use_cache=False, no_volume=False)
 
     history = stk.history
@@ -424,7 +426,8 @@ if __name__ == "__main__":
     history.apply(c, axis=1)
 
     init_plot()
-    plot_lmk(history)
+    plot_lmk(history, show_errorbar=True)
+    #plot_lmk(history, show_errorbar=False)
     show_plot()
 
 
