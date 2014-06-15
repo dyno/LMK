@@ -185,7 +185,7 @@ def plot_lmk_band(history, atr_factor=2.0, line="-", alpha=1.0, band_width=1, sh
 
 #--------------------------------------------------------------------------------
 class LMKBandBacktestCalculator(object):
-    def __init__(self, fund=10000.0, commission=9.9):
+    def __init__(self, fund=10000.0, commission=1.0):
         self.fund = self.cash = fund
         self.amount = 0
         self.commission = commission
@@ -286,7 +286,8 @@ if __name__ == "__main__":
     #stk.retrieve_history(start="2012/1/1", use_cache=False, no_volume=True)
     #stk = Stock("002237.SZ")
     #stk.retrieve_history(start="2013/1/1", use_cache=True, no_volume=False)
-    stk = Stock("WUBA")
+    #stk = Stock("WUBA")
+    stk = Stock("HIMX")
     stk.retrieve_history(start="2013/6/1", use_cache=False, no_volume=False)
 
     history = stk.history

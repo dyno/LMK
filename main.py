@@ -9,6 +9,7 @@ import log
 from stock import Stock
 from constants import *
 from common import init_plot, show_plot
+from BuyPointCalculator import BuyPointCalculator
 from LMKCalculator import LMKCalculator, LMKBacktestCalculator, plot_lmk
 from LMKBandCalculator import LMKBandCalculator, LMKBandBacktestCalculator, plot_lmk_band
 from InitialPivotalPointCalculator import InitialPivotalPointCalculator
@@ -24,9 +25,14 @@ def lmk_analysis(stk, atr_factor=2, band_width=1, show_errorbar=False, fluct_fac
     c = LMKCalculator(c)
     lmk = history.apply(c, axis=1)
     history = pandas.merge(history, lmk, left_index=True, right_index=True, sort=False)
+
+    c = BuyPointCalculator()
+    history["Buy"] = history.apply(c, axis=1)
+
     last = history.ix[-1]
-    log.logger.info("%s: close=%.2f, reaction_support=%.2f, rally_resistance=%.2f",
-                    last.name.strftime("%Y-%m-%d"), last["Close"], last["reaction_support"], last["rally_resistance"])
+    log.logger.info("%s: close=%.2f, atr/2=%.2f, reaction_support=%.2f, rally_resistance=%.2f",
+                    last.name.strftime("%Y-%m-%d"), last["Close"], last["ATR"],
+                    last["reaction_support"], last["rally_resistance"])
 
     c = LMKBacktestCalculator()
     history.apply(c, axis=1)
@@ -90,23 +96,25 @@ def main():
     symbol = "000001.SS"
     symbol = "600547.SS"
     symbol = "WUBA"
+    symbol = "HIMX"
 
     atr_factor, freq, band_width =2.0, "D", 1
 #    result = lmk_band_analysis(symbol, start="2013/6/1", end=datetime.today(), no_volume=False,
 #                               atr_factor=atr_factor, freq=freq, band_width=band_width)
 #    print "%s: atr_factor=%.1f, freq=%5s, lmk_result=%.2f" % (symbol, atr_factor, freq, result)
+    atr_factor, freq, band_width =2.0, "W-FRI", 6
 
     stk = Stock(symbol)
-    stk.retrieve_history(start="2013/12/10", end=datetime.today(), use_cache=False, no_volume=False)
+    stk.retrieve_history(start="2013/1/1", end=datetime.today(), use_cache=False, no_volume=False)
     stk.resample_history(freq=freq)
     print stk.history.tail()
 
     result = [1,1]
     init_plot(width=19.0, height=3.0, title=symbol)
-    result[0] = lmk_analysis(stk, atr_factor=atr_factor/2.0, plot=True, fluct_factor=1.0)
+    result[0] = lmk_analysis(stk, atr_factor=atr_factor/2.0, show_errorbar=True, fluct_factor=1.0)
     show_plot()
-    init_plot(width=19.0, height=3.0, title=symbol)
-    result[1] = lmk_band_analysis(stk, atr_factor=atr_factor, band_width=band_width, fluct_factor=1.0)
+    #init_plot(width=19.0, height=3.0, title=symbol)
+    #result[1] = lmk_band_analysis(stk, atr_factor=atr_factor, band_width=band_width, fluct_factor=1.0)
     #show_plot()
 
     print "%s: atr_factor=%.1f, freq=%-5s, [lmk/band]=[%s]" % (
