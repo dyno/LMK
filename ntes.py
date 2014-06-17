@@ -25,6 +25,7 @@ import MyDataReader
 from common import fmt_err_msg
 
 
+#-------------------------------------------------------------------------------
 #http://quotes.money.163.com/service/dadan_data.html?symbol=300382&amount=500000&page=0
 DADAN_DATA_163_URL = "http://quotes.money.163.com/service/dadan_data.html?symbol=%s"
 def _get_quote_today_dadan(symbol):
@@ -70,12 +71,14 @@ def _get_quote_today_dadan(symbol):
                      "Low"  : min(parser.prices),
                      "Close": parser.prices[0],
                      "Volume": sum(parser.volumes),
-                     "Adj Close" : sum(map(operator.mul, parser.prices, parser.volumes)) / sum(parser.volumes)
+                     #"Adj Close" : sum(map(operator.mul, parser.prices, parser.volumes)) / sum(parser.volumes)
+                    "Adj Close": parse.prices[0],
                     }
     except HTTPError, e:
         log.logger.debug("open '%s' result error.\n%s", url, e)
 
 
+#-------------------------------------------------------------------------------
 API_MONEY_126_URL = "http://api.money.126.net/data/feed/%s,money.api"
 def _get_quote_today_126(code):
     url = API_MONEY_126_URL % code
@@ -100,33 +103,43 @@ def _get_quote_today_126(code):
     except HTTPError, e:
         log.logger.debug("open '%s' result error.\n%s", url, e)
 
-def sanitize(code):
-    if code.endswith(".SS"):
-        code = "0%s" % code[:6]
-    elif code.endswith(".SZ"):
-        code = "1%s" % code[:6]
+def sanitize(symbol, with_prefix=True):
+    if symbol.endswith(".SS"):
+        code = "%s%s" % ("0" if with_prefix else "", symbol[:6])
+    elif symbol.endswith(".SZ"):
+        code = "%s%s" % ("1" if with_prefix else "", symbol[:6])
+    else:
+        code = symbol
 
     return code
 
-#-----------------------------------------------------------------------
+def is_stock(symbol):
+    if symbol.endswith(".SS") and symbol[:3] in ("600", "601", "900"):
+        return True
+    if symbol.endswith(".SZ") and symbol[:3] in ("000", "200", "002", "300"):
+        return True
+    return False
+
+#-------------------------------------------------------------------------------
 ## public ##
 
-def get_quote_today(code, source="126"):
-    code = sanitize(code)
+def get_quote_today(symbol, source="126"):
+    symbol = sanitize(symbol)
 
     if source == "126":
-        return _get_quote_today_126(code)
+        return _get_quote_today_126(symbol)
     elif source == "163":
-        return _get_quote_today_dadan(code)
+        return _get_quote_today_dadan(symbol)
 
 
+#-------------------------------------------------------------------------------
 _HISTORICAL_163_URL = "http://quotes.money.163.com/service/chddata.html?code=%s&start=%s&end=%s&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;VOTURNOVER;VATURNOVER"
 # http://quotes.money.163.com/service/chddata.html?code=1000001&start=19910102&end=20140207&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP
-def get_data(code=None, start=None, end=None, retry_count=3,
+def get_data(symbol=None, start=None, end=None, retry_count=3,
                     pause=0.001, adjust_price=False, ret_index=False,
                     chunksize=25, name=None):
     start, end = _sanitize_dates(start, end)
-    code = sanitize(code)
+    code = sanitize(symbol)
 
     url = _HISTORICAL_163_URL % (code, start.strftime('%Y%m%d'), end.strftime('%Y%m%d'))
 
@@ -148,6 +161,7 @@ def get_data(code=None, start=None, end=None, retry_count=3,
             # skip empty lines in head
             sio = StringIO(response.read())
             sio.seek(0, 0)
+            #print sio.getvalue()
             while True:
                 c = sio.read(1)
                 if not c.isspace(): break
@@ -157,6 +171,7 @@ def get_data(code=None, start=None, end=None, retry_count=3,
             #日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,成交量,成交金额
             rs = rs[[u"开盘价", u"最高价", u"最低价", u"收盘价", u"成交量", u"收盘价"]]
             rs.columns = MyDataReader.COLUMNS
+
             return rs
         except _network_error_classes, e:
             log.logger.debug("get_data(): '%s' error:\n%s", url, fmt_err_msg(e))
@@ -164,6 +179,70 @@ def get_data(code=None, start=None, end=None, retry_count=3,
     raise IOError("after %d tries, %s did not return a 200 for url %r" % (retry_count, name, url))
 
 
+#-------------------------------------------------------------------------------
+# http://quotes.money.163.com/f10/fhpg_000001.html#01d05a
+FHPG_URL = "http://quotes.money.163.com/f10/fhpg_%s.html#01d05a"
+def get_stock_divident_split(symbol):
+    class MyHTMLParser(HTMLParser):
+        def __init__(self, *argv, **kargs):
+            HTMLParser.__init__(self, *argv, **kargs)
+            self.result = []
+
+            self.in_h1 = False
+            self.ds_start = False
+            self.in_td = False
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "h1":
+                self.ds_start = False
+                self.in_h1 = True
+
+            if tag == "tr":
+                self.td_count = 0
+
+            if tag == "td":
+                self.in_td = True
+                self.td_count += 1
+
+        def handle_endtag(self, tag):
+            if tag == "h1":
+                self.in_h1 = False
+            if tag == "td":
+                self.in_td = False
+
+        def handle_data(self, data):
+            data = data.strip()
+            if self.in_h1 and data.find(u"分红配股") != -1:
+                self.ds_start = True
+
+            #print self.ds_start, self.in_td, data
+            if self.ds_start and self.in_td and data:
+                if self.td_count == 3:  # 送股
+                    self.record = []
+                    self.record.append(data)
+                elif self.td_count == 4:# 转增
+                    self.record.append(data)
+                elif self.td_count == 5:# 派息
+                    self.record.append(data)
+                elif self.td_count == 7:# 除权除息日
+                    self.record.append(data)
+                    self.result.append(self.record)
+
+    code = sanitize(symbol, with_prefix=False)
+    url = FHPG_URL % code
+    log.logger.debug("get_stock_divident_split(): '%s'", url)
+    try:
+        response = urlopen(url)
+        data = response.read().decode("utf-8")
+        parser = MyHTMLParser()
+        parser.feed(data)
+        if len(parser.result) > 0:
+            return parser.result
+    except HTTPError, e:
+        log.logger.debug("open '%s' result error.\n%s", url, e)
+
+
+#-------------------------------------------------------------------------------
 STOCK_SEARCH_URL = "http://quotes.money.163.com/stocksearch/json.do?count=10&word=%s"
 def search_stock(symbol):
     if re.search("\d{6}", symbol):
@@ -192,6 +271,15 @@ if __name__ == "__main__":
     import common
     common.probe_proxy()
     log.init(logging.DEBUG)
+
+    symbol = "300011.SZ" # 鼎汉技术
+    h = get_stock_divident_split(symbol)
+    for l in h:
+        print l
+
+    hist = get_data(symbol, start="2014-04-01", end="2014-04-30")
+    print hist.tail()
+    sys.exit(0)
 
     symbol = "300077.SZ"
     quote = get_quote_today(symbol)

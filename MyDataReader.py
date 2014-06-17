@@ -14,9 +14,42 @@ import yhoo
 import ntes
 import log
 
+
+# ------------------------------------------------------------------------------
+def adjust_close_price(hist, changes):
+    changes = [(e[3], e) for e in changes]
+    changes.sort()
+    changes.reverse()
+    changes = [e[1] for e in changes]
+
+    hist["_Close"] = hist["Close"] # backup
+    for stock_dividend, stock_issue, cash_dividend, _dt in changes:
+        try: stock_dividend = int(stock_dividend)
+        except: stock_dividend = 0
+        try: stock_issue = int(stock_issue)
+        except: stock_issue = 0
+        try: cash_dividend = float(cash_dividend)
+        except: cash_dividend = 0
+
+        def c(r):
+            # 1) only account for split, e.g. http://www.znz888.com/stock/history.php?code=sz300011&type=history
+            #    10 * stock_price_before = (10 + stock_dividend + stock_issue) * stock_price_after
+            #    yahoo seems to have adopt this method too.
+            # 2) consider both split and dividend, e.g. google data.
+            #    https://www.google.com/finance/historical?cid=9525130&startdate=Apr+1%2C+2014&enddate=Apr+30%2C+2014&num=30&ei=BmGgU9i1KsrniwLM3oCQDg
+            #    10 * stock_price_before + cash_dividend = (10 + stock_dividend + stock_issue) * stock_price_after
+            return  r["Close"] if r.name.strftime("%Y-%m-%d") >= _dt else \
+                    (r["Close"] * 10 + cash_dividend) / (10 + stock_dividend + stock_issue)
+
+        #hist.loc[hist.index < _dt, ["Adj Close",]] = hist.loc[hist.index < _dt].apply(c, axis=1)
+        del hist["Adj Close"]; hist["Adj Close"] = hist.apply(c, axis=1)
+        del hist["Close"]; hist["Close"] = hist["Adj Close"]
+
+    del hist["Close"]; hist.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
+
+
+# ------------------------------------------------------------------------------
 COLUMNS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
-
-
 ptn_CHINA = re.compile(r"\d{6}")
 def MyDataReader(symbol, start=None, end=None):
     start, end = _sanitize_dates(start, end)
@@ -24,18 +57,25 @@ def MyDataReader(symbol, start=None, end=None):
     match_china = ptn_CHINA.search(symbol)
     if not match_china:
         hist = DataReader(symbol, "yahoo", start, end)
-
     else:
         # fallback to 163 data...
-        code = match_china.group(0)
-        if symbol.endswith("SS"):
-            code = "0%s" % code
-        elif symbol.endswith("SZ"):
-            code = "1%s" % code
-
-        hist = ntes.get_data(code, start=start, end=end)
+        hist = ntes.get_data(symbol, start=start, end=end)
+        if ntes.is_stock(symbol):
+            changes = ntes.get_stock_divident_split(symbol)
+            adjust_close_price(hist, changes)
 
     hist.sort(ascending=True, inplace=True) # data might be desending, like 163
+
+    # normalize the data
+    # http://luminouslogic.com/how-to-normalize-historical-data-for-splits-dividends-etc.htm
+    hist["_Open"] = hist["Open"] * hist["Adj Close"] / hist["Close"]
+    hist["_High"] = hist["High"] * hist["Adj Close"] / hist["Close"]
+    hist["_Low"] = hist["Low"] * hist["Adj Close"] / hist["Close"]
+    hist["_Close"] = hist["Adj Close"]
+    #print hist.tail(30)
+
+    del hist["Open"], hist["High"], hist["Low"], hist["Close"]
+    hist.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
 
     # patch today's price
     last = pandas.to_datetime(hist.ix[-1].name).date()
@@ -69,6 +109,10 @@ def MyDataReader(symbol, start=None, end=None):
 
 
 if __name__ == "__main__":
+    import warnings
+    from pandas.core.common import SettingWithCopyWarning
+    warnings.simplefilter('error',SettingWithCopyWarning)
+
     import sys
     from common import probe_proxy
     probe_proxy()
@@ -79,14 +123,16 @@ if __name__ == "__main__":
 
     symbol = "000001.SS"
     symbol = "600489.SS"
-    hist = MyDataReader(symbol)
-    print hist.tail()
+    symbol = "300011.SZ" # 鼎汉技术
+    hist = MyDataReader(symbol, start="2014-04-01", end="2014-04-30")
+    print hist.tail(20)
+
+    sys.exit(0)
 
     symbol = "AAPL"
     hist = MyDataReader(symbol)
-    print hist.tail()
+    print hist.tail(30)
     sys.exit(0)
-
 
     symbol = "300382.SZ"
     hist = MyDataReader(symbol)
@@ -99,5 +145,4 @@ if __name__ == "__main__":
     symbol = "600385.SS" # delisting
     hist = MyDataReader(symbol)
     print hist.tail()
-
 
