@@ -60,22 +60,8 @@ def MyDataReader(symbol, start=None, end=None):
     else:
         # fallback to 163 data...
         hist = ntes.get_data(symbol, start=start, end=end)
-        if ntes.is_stock(symbol):
-            changes = ntes.get_stock_divident_split(symbol)
-            adjust_close_price(hist, changes)
 
     hist.sort(ascending=True, inplace=True) # data might be desending, like 163
-
-    # normalize the data
-    # http://luminouslogic.com/how-to-normalize-historical-data-for-splits-dividends-etc.htm
-    hist["_Open"] = hist["Open"] * hist["Adj Close"] / hist["Close"]
-    hist["_High"] = hist["High"] * hist["Adj Close"] / hist["Close"]
-    hist["_Low"] = hist["Low"] * hist["Adj Close"] / hist["Close"]
-    hist["_Close"] = hist["Adj Close"]
-    #print hist.tail(30)
-
-    del hist["Open"], hist["High"], hist["Low"], hist["Close"]
-    hist.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
 
     # patch today's price
     last = pandas.to_datetime(hist.ix[-1].name).date()
@@ -105,6 +91,23 @@ def MyDataReader(symbol, start=None, end=None):
         df["Volume"] = df["Volume"].astype(int)
         hist = hist.append(df)
 
+    if match_china:
+        if ntes.is_stock(symbol):
+            changes = ntes.get_stock_divident_split(symbol)
+            if changes:
+                adjust_close_price(hist, changes)
+
+    # normalize the data
+    # http://luminouslogic.com/how-to-normalize-historical-data-for-splits-dividends-etc.htm
+    hist["_Open"] = hist["Open"] * hist["Adj Close"] / hist["Close"]
+    hist["_High"] = hist["High"] * hist["Adj Close"] / hist["Close"]
+    hist["_Low"] = hist["Low"] * hist["Adj Close"] / hist["Close"]
+    hist["_Close"] = hist["Adj Close"]
+    #print hist.tail(30)
+
+    del hist["Open"], hist["High"], hist["Low"], hist["Close"]
+    hist.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
+
     return hist
 
 
@@ -124,7 +127,9 @@ if __name__ == "__main__":
     symbol = "000001.SS"
     symbol = "600489.SS"
     symbol = "300011.SZ" # 鼎汉技术
-    hist = MyDataReader(symbol, start="2014-04-01", end="2014-04-30")
+    #hist = MyDataReader(symbol, start="2014-04-01", end="2014-04-30")
+    symbol = "300157.SZ" # 潜能恒信
+    hist = MyDataReader(symbol, start="2014-04-01")
     print hist.tail(20)
 
     sys.exit(0)
