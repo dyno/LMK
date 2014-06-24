@@ -280,7 +280,7 @@ def plot_lmk(history, band_width=1, show_errorbar=False, fluct_factor=2.0):
 
     ax2 = plt.gca().twinx()
     ymax = max(history["Volume"]) * 5
-    ymin = min(history["Volume"])
+    ymin = 0 #min(history["Volume"])
     ax2.set_ylim(ymin, ymax)
     ax2.set_xlim(ax.get_xlim())
     ax2.get_xaxis().set_visible(False)
