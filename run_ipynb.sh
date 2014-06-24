@@ -1,4 +1,5 @@
 #!/bin/bash
+. venv/bin/activate
 
 ipython notebook --pprint --matplotlib=inline
 
