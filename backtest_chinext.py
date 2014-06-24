@@ -33,9 +33,10 @@ def process_stock(symbol):
     print "processing", symbol_ex
 
     stk = Stock(symbol_ex)
-    start = db[symbol][2]
+    #start = db[symbol][2]
+    start = "2014/2/1"
     end = date.today()
-    stk.retrieve_history(start=start, end=end, use_cache=True, no_volume=False)
+    stk.retrieve_history(start=start, end=end, use_cache=False, no_volume=False)
 
     history = stk.history
 
@@ -93,7 +94,7 @@ if __name__ == "__main__":
     probe_proxy()
 
     #symbol = "300357"
-    #process_stock_wrapper(symbol)
+    #process_stock(symbol)
     #sys.exit(0)
 
     max_process=4
