@@ -42,7 +42,7 @@ class Stock(object):
             # filter out extra big numbers like ^IXIC in 2013-12-30
             volume = self.history_daily["Volume"]
             volume_sum = sum(volume)
-            persent_threshhold = 1.0 * 6.0 / len(volume)
+            persent_threshhold = 1.0 * 10.0 / len(volume)
             self.history_daily = self.history_daily[(volume / volume_sum) < persent_threshhold]
 
         # process ATR
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     #for symbol in ("^IXIC",):
     for symbol in ("WUBA",):
         stk = Stock(symbol)
-        stk.retrieve_history(start="1/1/2013", use_cache=False, no_volume=False)
+        stk.retrieve_history(start="12/10/2013", use_cache=False, no_volume=False)
         print symbol
         #print stk.history.head()
         print stk.history.tail()
