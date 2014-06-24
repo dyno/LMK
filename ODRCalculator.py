@@ -13,11 +13,12 @@ class ODRCalculator(object):
     def __call__(self, tick):
         result = False
         if not self.last_tick is None:
-            if (tick["High"] > self.last_tick["High"] * (1 + self.price_threshhold)
-                    and tick["Close"] < self.last_tick["Close"]
-                    and tick["Volume"] > self.last_tick["Volume"] * (1 + self.volume_threshhold)
-                    and (self.last_tick["Close"] != self.last_tick["High"]
-                         and self.last_tick["Close"] != self.last_tick["Low"])):
+            if (tick["High"] > self.last_tick["High"] #* (1 + self.price_threshhold)
+                    and tick["Close"] < self.last_tick["Low"]
+                    and tick["Volume"] > self.last_tick["Volume"] #* (1 + self.volume_threshhold)
+                    #and (self.last_tick["Close"] != self.last_tick["High"]
+                    #     and self.last_tick["Close"] != self.last_tick["Low"])
+                ):
                 log.logger.debug("ODR: %s", tick.name)
                 result = True
 
