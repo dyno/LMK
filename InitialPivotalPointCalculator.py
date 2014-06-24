@@ -73,13 +73,17 @@ class InitialPivotalPointCalculator(object):
         self.last_price = current_price
 
 if __name__ == "__main__":
+    import logging
+
     import matplotlib.pyplot as plt
     from pandas.io.data import DataReader
     import pandas as pd
 
     from ATRCalculator import ATRCalculator
     from common import probe_proxy, show_plot
+    import log
 
+    log.init(logging.DEBUG)
     probe_proxy()
 
     history = DataReader("000001.SS", "yahoo", start="2008/1/1", end="2008/6/1")
@@ -97,14 +101,15 @@ if __name__ == "__main__":
     from MyDataReader import MyDataReader
     from stock import Stock
 
-    stk = Stock("300369.SZ")
-    stk.retrieve_history(start="2013/1/1")
+    stk = Stock("300357.SZ")
+    stk.retrieve_history(start="2014/2/1", use_cache=False)
 
     print stk.history.head()
     print stk.history.tail()
 
     c = InitialPivotalPointCalculator(atr_factor=2)
-    history.apply(c, axis=1)
-    print c.peak, c.valley
+    stk.history.apply(c, axis=1)
+    print "peak", c.peak
+    print "valley", c.valley
 
 
