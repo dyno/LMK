@@ -58,10 +58,10 @@ df.apply(validate, axis=1)
 ## Plot ##
 style_dict = {
             DD : "rv",
-            NN : "m>",
+            NN : "m<",
             SN : "m*",
             SY : "c*",
-            NY : "c<",
+            NY : "c>",
             UD : "g^",
         }
 
