@@ -853,7 +853,7 @@ class Stock(object):
 
         self.history = h
 
-    def visualize(self, components="HLC,BAND,BANDL,WM,PV,PVL,ODR,EE", fluct_factor=.5):
+    def visualize(self, components="C,CL,HLC,BAND,BANDL,WM,PV,PVL,ODR,EE", fluct_factor=.5):
         components = re.split("[-:,;.]", components)
         h = self.history
 
@@ -876,10 +876,14 @@ class Stock(object):
             ymax = min_close + height * 1.02
         ax0.set_ylim(ymin, ymax)
 
-        ax0.set_axis_bgcolor('lightgray')
-        ax1.set_axis_bgcolor('lightgray')
+        ax0.set_axis_bgcolor('white')
+        ax1.set_axis_bgcolor('white')
 
         #-----------------------------------------------------------------------
+        # Basic price line
+        if "CL" in components:
+            ax0.plot(h.index, h["Close"], "-", color="black", alpha=0.5)
+
         # Water Mark
         if "WM" in components:
             r = h.query("WM > 0")
@@ -913,8 +917,8 @@ class Stock(object):
         if "HLC" in components:
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
-        else:
-            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.2, markeredgewidth=2)
+        if "C" in components:
+            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
 
         # Downs ...
         rs = h.query("CC < 0")
@@ -923,8 +927,8 @@ class Stock(object):
         if "HLC" in components:
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
-        else:
-            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.2, markeredgewidth=2)
+        if "C" in components:
+            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
 
         if "BAND" in components:
             style_dict = {
