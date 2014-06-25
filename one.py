@@ -341,7 +341,7 @@ class NetEase(DataSource):
             start, end = data.find("(") + 1, data.find(")")
             data = data[start:end]
             data = json.loads(data)[code]
-            return { "Open"      : data["open"],
+            rs = { "Open"      : data["open"],
                      "High"      : data["high"],
                      "Low"       : data["low"],
                      "Close"     : data["yestclose"] + data["updown"],
@@ -349,6 +349,9 @@ class NetEase(DataSource):
                      "Volume"    : data["volume"] if self._get_symbol_type(symbol) == "stock" else data["volume"] / 100,
                      "Adj Close" : data["yestclose"] + data["updown"],
                     }
+            _env.logger.info("get_quote_today(): %s => price: %.2f, updown: %.2f, %.2f%%",
+		             symbol, r["Close"], data["updown"], data["updown"]/data["yestclose"])
+	    return rs
         except HTTPError, e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
@@ -914,21 +917,23 @@ class Stock(object):
         rs = h.query("CC >= 0")
         # Volume
         ax1.bar(rs.index, rs["Volume"], width=1, color="black", edgecolor="black", linewidth=1, alpha=.3, align="center")
-        if "HLC" in components:
-            ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
-            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
         if "C" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
+        if "HLC" in components:
+            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
+	    rs = h.query("Close >= Open")
+            ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
 
         # Downs ...
         rs = h.query("CC < 0")
         # Volume
         ax1.bar(rs.index, rs["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=.3, align="center")
-        if "HLC" in components:
-            ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
-            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
         if "C" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
+        if "HLC" in components:
+            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
+	    rs = h.query("Close < Open")
+            ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
 
         if "BAND" in components:
             style_dict = {
