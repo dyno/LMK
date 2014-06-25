@@ -265,7 +265,7 @@ class NetEase(DataSource):
         split_history.reverse()
         split_history = [e[1] for e in split_history]
 
-        history["_Close"] = history["Close"] # backup
+        history["_Close"] = history["Close"].copy() # backup
         for stock_dividend, stock_issue, cash_dividend, dt in split_history:
             try: stock_dividend = int(stock_dividend)
             except: stock_dividend = 0
@@ -287,10 +287,10 @@ class NetEase(DataSource):
                         (r["Close"] * 10 + cash_dividend) / (10 + stock_dividend + stock_issue)
 
             #hist.loc[hist.index < _dt, ["Adj Close",]] = hist.loc[hist.index < _dt].apply(c, axis=1)
-            del history["Adj Close"]; history["Adj Close"] = history.apply(c, axis=1)
-            del history["Close"]; history["Close"] = history["Adj Close"]
+            history["Adj Close"] = history.apply(c, axis=1)
+            history["Close"] = history["Adj Close"]
 
-        del history["Close"]; history.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
+	del history["Close"]; history.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
 
     #---------------------------------------------------------------------------
     HISTORY_DATA_URL = "".join(["http://quotes.money.163.com/service/chddata.html?",
@@ -316,7 +316,7 @@ class NetEase(DataSource):
 
             rs = pandas.read_csv(sio, encoding="GBK", index_col=0, parse_dates=True)
             #日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,成交量,成交金额
-            h = rs[[u"开盘价", u"最高价", u"最低价", u"收盘价", u"成交量", u"收盘价"]]
+            h = rs[[u"开盘价", u"最高价", u"最低价", u"收盘价", u"成交量", u"收盘价"]].copy()
             h.columns = Market.HISTORY_COLUMNS
 
             if self._get_symbol_type(symbol) == "stock":
