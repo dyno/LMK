@@ -439,7 +439,7 @@ class Market(object):
                                       columns=Market.HISTORY_COLUMNS, dtype=float)
                 df.ix[0] = hd.ix[0]
                 hd = df.append(hd)
-                print hd.head()
+                #print hd.head()
             store = HDFStore(cache)
             store.put("history_daily", hd)
             store.flush()
