@@ -99,13 +99,13 @@ _env.probe_proxy()
 #===============================================================================
 class DataSource(object):
     def get_symbol_name(self, symbol):
-        raise Exception("NotImplemented")
+        raise NotImplementedError()
 
     def retrieve_history(self, symbol, _start, _end):
-        raise Exception("NotImplemented")
+        raise NotImplementedError()
 
     def get_quote_today(self, symbol):
-        raise Exception("NotImplemented")
+        raise NotImplementedError()
 
 #===============================================================================
 @singleton
@@ -350,7 +350,7 @@ class NetEase(DataSource):
                      "Adj Close" : data["yestclose"] + data["updown"],
                     }
             _env.logger.info("get_quote_today(): %s => price: %.2f, updown: %.2f, %.2f%%",
-		             symbol, r["Close"], data["updown"], data["updown"]/data["yestclose"])
+		             symbol, rs["Close"], data["updown"], data["updown"]*100/data["yestclose"])
 	    return rs
         except HTTPError, e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
