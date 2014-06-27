@@ -35,6 +35,8 @@ warnings.simplefilter('error',SettingWithCopyWarning)
 pandas.set_option('display.max_columns', 500)
 pandas.set_option('display.width', 200)
 plt.rcParams['figure.figsize'] = (19, 6)
+# http://www.vartang.com/2014/04/matplotlib-plot/
+plt.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei']
 
 #===============================================================================
 # Convienction:
