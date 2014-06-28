@@ -639,7 +639,8 @@ class ATRCalculator(object):
             tr = HL
         self.last_tick = tick.copy()
 
-        assert tr != 0.0, "TR should not be zero!"
+        # assert tr != 0.0, "TR should not be zero!"
+        # extremely low volume like BPHX @ 2014-06-03
         if len(self.tr_list) < self.atr_period:
             self.tr_list.append(tr)
             self.atr = sum(self.tr_list) / len(self.tr_list)
