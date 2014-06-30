@@ -292,7 +292,7 @@ class NetEase(DataSource):
             history["Adj Close"] = history.apply(c, axis=1)
             history["Close"] = history["Adj Close"]
 
-	del history["Close"]; history.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
+        del history["Close"]; history.rename(columns=lambda c: c.replace('_', ''), inplace=True) # restore
 
     #---------------------------------------------------------------------------
     HISTORY_DATA_URL = "".join(["http://quotes.money.163.com/service/chddata.html?",
@@ -352,8 +352,8 @@ class NetEase(DataSource):
                      "Adj Close" : data["yestclose"] + data["updown"],
                     }
             _env.logger.info("get_quote_today(): %s => price: %.2f, updown: %.2f, %.2f%%",
-		             symbol, rs["Close"], data["updown"], data["updown"]*100/data["yestclose"])
-	    return rs
+                             symbol, rs["Close"], data["updown"], data["updown"]*100/data["yestclose"])
+            return rs
         except HTTPError, e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
@@ -637,7 +637,6 @@ class ATRCalculator(object):
             tr = max(HL, HCp, LCp)
         else:
             tr = HL
-        self.last_tick = tick.copy()
 
         # assert tr != 0.0, "TR should not be zero!"
         # extremely low volume like BPHX @ 2014-06-03
@@ -648,6 +647,9 @@ class ATRCalculator(object):
             #self.atr = (self.atr * (atr_period - 1) + self.tr) / atr_period
             self.atr += (tr - self.atr) / self.atr_period
 
+        # assert self.atr != 0.0, "ATR should not be zero! last=%s, tick=%s" % (repr(self.last_tick), repr(tick))
+        # RRST @ 2014-01-02
+        self.last_tick = tick.copy()
         return self.atr
 
 #===============================================================================
@@ -692,37 +694,26 @@ class LMKBandCalculator(object):
         self.water_mark = 0.0
 
     def __call__(self, tick):
-        def normalize_band(band):
+        def normalize(band):
             if band > BAND_UPWARD: band = BAND_UPWARD
             if band < BAND_DNWARD: band = BAND_DNWARD
             return band
 
-        assert tick["ATR"] != 0, "ATR should not be zero."
+        #-----------------------------------------------------------------------
+        #assert tick["ATR"] != 0, "ATR should not be zero."
+        # RRST @ 2014-01-02, and we use 0.001 to avoid dividing by zero.
+        if tick["ATR"] == 0: tick["ATR"] = 0.001
         band_width = tick["ATR"] * self.atr_factor
         _close = tick["Close"]
         band = BAND_UNKNOWN
-
-        if "H" in tick["Pivot"]:
-            self.rsst = _close
-            self.water_mark = self.rsst
-            self.prv_pivot = "H"
-            self.prv_band = BAND_UPWARD
-
-        elif "L" in tick["Pivot"]:
-            self.sppt = _close
-            self.warter_mark = self.sppt
-            self.prv_pivot = "L"
-            self.prv_band = BAND_DNWARD
-
         # trending downward ...
         if self.prv_pivot == "H":
-            band = 6 - int(math.floor((self.rsst - _close) / (band_width / 6.0)))
-            band = normalize_band(band)
-
+            band = normalize(6 - int(math.floor((self.rsst - _close) / (band_width / 6.0))))
         # trending upward ...
         if self.prv_pivot == "L":
-            band = int(math.ceil((_close - self.sppt) / (band_width / 6.0)))
-            band = normalize_band(band)
+            band = normalize(int(math.ceil((_close - self.sppt) / (band_width / 6.0))))
+#        _env.logger.debug("%s=>_close=%.2f, from %s, rsst=%.2f, sppt=%.2f, band=%d, band_width=%.2f",
+#                          tick.name.strftime("%Y-%m-%d"), _close, self.prv_pivot, self.rsst, self.sppt, band, band_width)
 
         if band != self.prv_band:
             self.water_mark = _close
@@ -740,6 +731,20 @@ class LMKBandCalculator(object):
                         self.sppt = self.water_mark
 
         self.prv_band = band
+
+        # calculate the new pivot ...
+        if "H" in tick["Pivot"]:
+            self.rsst = _close
+            self.water_mark = self.rsst
+            self.prv_pivot = "H"
+            self.prv_band = BAND_UPWARD
+
+        elif "L" in tick["Pivot"]:
+            self.sppt = _close
+            self.warter_mark = self.sppt
+            self.prv_pivot = "L"
+            self.prv_band = BAND_DNWARD
+
         return pandas.Series({ "WM": self.water_mark, "BAND": band })
 
 #===============================================================================
@@ -754,19 +759,9 @@ class EntryExitCalculator(object):
     def __call__(self, tick):
         atr = tick["ATR"] * self.atr_factor
         pivot_type, pivot_price = self.pivot
-        if tick["WM"] == tick["Close"]:
-            if tick["BAND"] == BAND_DNWARD:
-                if pivot_type != "L" or (pivot_type == "L" and tick["Close"] < pivot_price):
-                    pivot_price = tick["Close"]
-                    self.pivot = ("L", pivot_price)
-            elif tick["BAND"] == BAND_UPWARD:
-                if pivot_type != "H" or (pivot_type == "H" and tick["Close"] > pivot_price):
-                    pivot_price = tick["Close"]
-                    self.pivot = ("H", pivot_price)
-
-        pivot_type, pivot_price = self.pivot
+        # whether we should trade today ...
         if pivot_type == "L":
-            if tick["Close"] > pivot_price + atr/2:
+            if tick["Close"] >= pivot_price + atr/2:
                 self.stock = 1
                 self.cost = tick["Close"]
             elif self.stock == 1 and tick["Close"] <= self.cost - atr/2: # break low
@@ -780,13 +775,26 @@ class EntryExitCalculator(object):
                 self.stock = 1
                 self.cost = tick["Close"]
 
+#        _env.logger.debug("%s => stock=%d, prv_stock=%d, pivot_price=%.2f, close=%.2f, atr/2=%.2f",
+#                          tick.name.strftime("%Y-%m-%d"), self.stock, self.prv_stock, pivot_price, tick["Close"], atr/2)
         self.trade = "-"
         if self.stock == 1 and self.prv_stock == 0:
             self.trade = "B"
-        if self.stock == 0 and self.prv_stock == 1:
+            self.prv_stock = self.stock
+        elif self.stock == 0 and self.prv_stock == 1:
             self.trade = "S"
+            self.prv_stock = self.stock
 
-        self.prv_stock = self.stock
+        # calculate the new pivot point ...
+        if tick["WM"] == tick["Close"]:
+            if tick["BAND"] == BAND_DNWARD:
+                if pivot_type != "L" or (pivot_type == "L" and tick["Close"] < pivot_price):
+                    pivot_price = tick["Close"]
+                    self.pivot = ("L", pivot_price)
+            elif tick["BAND"] == BAND_UPWARD:
+                if pivot_type != "H" or (pivot_type == "H" and tick["Close"] > pivot_price):
+                    pivot_price = tick["Close"]
+                    self.pivot = ("H", pivot_price)
 
         return self.trade
 
@@ -869,7 +877,7 @@ class Stock(object):
         ax1 = plt.subplot2grid((5,1), (4, 0), rowspan=1, sharex=ax0)
         ax1.yaxis.set_visible(False)
         figure = plt.gcf()
-        #figure.suptitle(self.name)
+        figure.suptitle("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)))
         figure.subplots_adjust(hspace=0)
 
         min_close = min(h["Close"])
@@ -924,7 +932,7 @@ class Stock(object):
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
         if "HLC" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
-	    rs = h.query("Close >= Open")
+            rs = h.query("Close >= Open")
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
 
         # Downs ...
@@ -935,7 +943,7 @@ class Stock(object):
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
         if "HLC" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
-	    rs = h.query("Close < Open")
+            rs = h.query("Close < Open")
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
 
         if "BAND" in components:
@@ -1011,7 +1019,7 @@ class Stock(object):
         ax1.xaxis.grid(True, which='minor', color="gray", linestyle="-", alpha=.3)
 
         # http://stackoverflow.com/questions/12750355/python-matplotlib-figure-title-overlaps-axes-label-when-using-twiny
-        ax0.set_title("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)), y=0.9)
+        #ax0.set_title("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)), y=0.9)
 
         plt.show()
 
