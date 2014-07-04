@@ -874,8 +874,11 @@ class Stock(object):
         #-----------------------------------------------------------------------
         ax0 = plt.subplot2grid((5,1), (0, 0), rowspan=4)
         ax0.set_xmargin(0.02)
+        #http://stackoverflow.com/questions/3305865/what-is-the-difference-between-log-and-symlog
+        #ax0.set_yscale("symlog", linthreshy=30)
         ax1 = plt.subplot2grid((5,1), (4, 0), rowspan=1, sharex=ax0)
         ax1.yaxis.set_visible(False)
+        #ax1.set_yscale("symlog", linthreshy=1000)
         figure = plt.gcf()
         figure.suptitle("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)))
         figure.subplots_adjust(hspace=0)
