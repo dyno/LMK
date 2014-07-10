@@ -363,7 +363,6 @@ TradeHour = namedtuple('TradeHour', ['open', 'close'])
 TradeTime = namedtuple("TradeTime", ["hour", "minute"])
 
 class Market(object):
-    name_cache = shelve.open("name.cache")
     HISTORY_COLUMNS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
 
     #---------------------------------------------------------------------------
@@ -502,8 +501,10 @@ class NasdaQ(Market):
                  date(year, 12, 25), # Christmas
                ]
 
-    def __init__(self):
+    def __init__(self, name="NasdaQ"):
         self.datasource = Yahoo()
+        self.name = name
+        self.name_cache = shelve.open("name.cache.%s" % self.name)
 
 #===============================================================================
 @singleton
@@ -533,8 +534,10 @@ class ChinaA(Market):
                  date(2014, 10, 1), # National Day
                ]
 
-    def __init__(self):
+    def __init__(self, name="ChinaA"):
         self.datasource = NetEase()
+        self.name = name
+        self.name_cache = shelve.open("name.cache.%s" % self.name)
 
 #===============================================================================
 class PivotCalculator(object):
@@ -814,7 +817,7 @@ class Stock(object):
         self.history = self.market.retrieve_history(self.symbol, _start, _end)
         return self.history
 
-    def process_history(self, freq="D", pivot_look_around=5):
+    def process_history(self, freq="D", pivot_look_around=5, atr_factor=1.0):
         h = self.history
 
         # without .copy(), you will get SettingWithCopyWarning somewhere ...
@@ -858,11 +861,11 @@ class Stock(object):
         h.ix[highs, "Pivot"] += "H"
         h.ix[lows, "Pivot"] += "L"
 
-        c = LMKBandCalculator(atr_factor=1.0)
+        c = LMKBandCalculator(atr_factor=atr_factor)
         band_watermark = h.apply(c, axis=1)
         h = pandas.merge(h, band_watermark, left_index=True, right_index=True, sort=False)
 
-        c = EntryExitCalculator(atr_factor=1.0)
+        c = EntryExitCalculator(atr_factor=atr_factor)
         h["EE"] = h.apply(c, axis=1)
 
         self.history = h
