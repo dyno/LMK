@@ -118,7 +118,9 @@ class Yahoo(DataSource):
 
     #---------------------------------------------------------------------------
     def retrieve_history(self, symbol, _start, _end):
-        return DataReader(symbol, "yahoo", _start, _end)
+        hist = DataReader(symbol, "yahoo", _start, _end)
+
+        return hist
 
     #---------------------------------------------------------------------------
     # http://www.gummy-stuff.org/Yahoo-data.htm
@@ -144,6 +146,28 @@ class Yahoo(DataSource):
                                }
         except HTTPError, e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
+
+
+#===============================================================================
+@singleton
+class Google(DataSource):
+    def __init__(self):
+        self.yahoo = Yahoo()
+
+    #---------------------------------------------------------------------------
+    def get_symbol_name(self, symbol):
+        return symbol
+
+    #---------------------------------------------------------------------------
+    def retrieve_history(self, symbol, _start, _end):
+        hist = DataReader(symbol, "google", _start, _end)
+        hist["Adj Close"] = hist["Close"]
+
+        return hist
+
+    #---------------------------------------------------------------------------
+    def get_quote_today(self, symbol):
+        return self.yahoo.get_quote_today(symbol)
 
 #===============================================================================
 @singleton
@@ -477,6 +501,9 @@ class Market(object):
 
         return name
 
+    def pick_datasource(self, ds):
+        self.datasource = self.datasources[ds]
+
 #===============================================================================
 @singleton
 class NasdaQ(Market):
@@ -502,9 +529,14 @@ class NasdaQ(Market):
                ]
 
     def __init__(self, name="NasdaQ"):
-        self.datasource = Yahoo()
+        self.datasources = {
+            "yahoo" : Yahoo(),
+            "google": Google(),
+        }
+        self.datasource = self.datasources["yahoo"]
         self.name = name
         self.name_cache = shelve.open("name.cache.%s" % self.name)
+
 
 #===============================================================================
 @singleton
@@ -535,9 +567,11 @@ class ChinaA(Market):
                ]
 
     def __init__(self, name="ChinaA"):
-        self.datasource = NetEase()
+        self.datasources = { "netease": NetEase() }
+        self.datasource = self.datasources["netease"]
         self.name = name
         self.name_cache = shelve.open("name.cache.%s" % self.name)
+
 
 #===============================================================================
 class PivotCalculator(object):
@@ -805,9 +839,15 @@ class EntryExitCalculator(object):
 #### main() ####
 #===============================================================================
 class Stock(object):
-    def __init__(self, symbol):
+    def __init__(self, symbol, ds=None):
         self.symbol = symbol
-        self.market = ChinaA() if symbol[-3:] in (".SS", ".SZ") else NasdaQ()
+        if symbol[-3:] in (".SS", ".SZ"):
+            self.market = ChinaA()
+        else:
+            self.market = NasdaQ()
+
+        if ds:
+            self.market.pick_datasource(ds)
 
     @property
     def name(self):
@@ -815,6 +855,7 @@ class Stock(object):
 
     def retrieve_history(self, _start, _end):
         self.history = self.market.retrieve_history(self.symbol, _start, _end)
+
         return self.history
 
     def process_history(self, freq="D", pivot_look_around=5, atr_factor=1.0):
