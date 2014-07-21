@@ -8,6 +8,7 @@ import re
 import pylab
 import pandas
 import operator
+import numpy
 import math
 import logging
 import json
@@ -18,7 +19,7 @@ from pytz import timezone
 from pandas.io.data import DataReader, _sanitize_dates
 from pandas import HDFStore
 from os.path import join, exists
-from numpy import ma
+from numpy import ma, nan
 from matplotlib.ticker import FuncFormatter
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 from matplotlib import pyplot as plt
@@ -137,13 +138,19 @@ class Yahoo(DataSource):
                     if pandas.to_datetime(row[1]).date() == date.today():
                         _env.logger.info("get_quote_today(): %s => price: %s, updown: %s",
                                         row[0], row[5], row[8].replace(" - ", ", "))
-                        return {"Open"      : float(row[2]),
-                                "High"      : float(row[3]),
-                                "Low"       : float(row[4]),
-                                "Close"     : float(row[5]),
-                                "Volume"    : int(row[6]) if int(row[6]) > 0 else 1, # index has no volume...
-                                "Adj Close" : float(row[5]),
+                        rs = {  "Open"      : float(row[2]) if row[2] != "N/A" else nan,
+                                "High"      : float(row[3]) if row[3] != "N/A" else nan,
+                                "Low"       : float(row[4]) if row[4] != "N/A" else nan,
+                                "Close"     : float(row[5]) if row[5] != "N/A" else nan,
+                                "Volume"    : int(row[6]) if row[6] != "N/A" and int(row[6]) > 0 else 1, # index has no volume...
+                                "Adj Close" : float(row[5]) if row[5] != "N/A" else nan,
                                }
+                        if nan in rs.values():
+                            _env.logger.debug("get_quote_today(): rs has nan! => '%s'", repr(rs))
+                            # 2014-07-21, WUBA
+                            if numpy.isnan(rs["Open"]): rs["Open"] = rs["Low"]
+
+                        return rs
         except HTTPError, e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
