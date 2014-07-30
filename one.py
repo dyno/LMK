@@ -830,15 +830,12 @@ class EntryExitCalculator(object):
             self.prv_stock = self.stock
 
         # calculate the new pivot point ...
-        if tick["WM"] == tick["Close"]:
-            if tick["BAND"] == BAND_DNWARD:
-                if pivot_type != "L" or (pivot_type == "L" and tick["Close"] < pivot_price):
-                    pivot_price = tick["Close"]
-                    self.pivot = ("L", pivot_price)
-            elif tick["BAND"] == BAND_UPWARD:
-                if pivot_type != "H" or (pivot_type == "H" and tick["Close"] > pivot_price):
-                    pivot_price = tick["Close"]
-                    self.pivot = ("H", pivot_price)
+        if tick["Pivot"] == "PL":
+            pivot_price = tick["Close"]
+            self.pivot = ("L", pivot_price)
+        elif tick["Pivot"] == "PH":
+                pivot_price = tick["Close"]
+                self.pivot = ("H", pivot_price)
 
         return self.trade
 
