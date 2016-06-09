@@ -1,11 +1,10 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8 :
 
-import urllib2
 import sys
 import shelve
+import requests
 import re
-import pylab
 import pandas
 import operator
 import numpy
@@ -13,21 +12,24 @@ import math
 import logging
 import json
 import csv
-
-from urllib2 import urlopen, HTTPError
-from pytz import timezone
-from pandas.io.data import DataReader, _sanitize_dates
-from pandas import HDFStore
 from os.path import join, exists
+from io import BytesIO, StringIO, TextIOWrapper
+from html.parser import HTMLParser
+from urllib.error import HTTPError
+
+from pytz import timezone
+from pandas_datareader.data import DataReader
+from pandas import HDFStore, to_datetime
 from numpy import ma, nan
-from matplotlib.ticker import FuncFormatter
-from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
+
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FuncFormatter
+from matplotlib.dates import num2date
+from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
+
 from dateutil.relativedelta import relativedelta, MO, TH
 from datetime import datetime, date, timedelta
 from collections import namedtuple
-from StringIO import StringIO
-from HTMLParser import HTMLParser
 
 import warnings
 from pandas.core.common import SettingWithCopyWarning
@@ -69,20 +71,6 @@ class Environment(object):
         self.logger = logging.getLogger()
         self.logger.setLevel(loglevel)
 
-    def probe_proxy(self):
-        use_proxy = False
-        with open("/etc/resolv.conf") as resolv:
-            for line in resolv:
-                if line.find(".com") != -1:
-                    use_proxy = True
-
-        if not use_proxy:
-            proxy_handler = urllib2.ProxyHandler({})
-            opener = urllib2.build_opener(proxy_handler)
-            urllib2.install_opener(opener)
-
-        return use_proxy
-
     @property
     def _today(cls):
         return date.today().strftime("%Y-%m-%d")
@@ -97,7 +85,6 @@ class Environment(object):
 
 _env = Environment()
 _env.init_log(loglevel=logging.DEBUG)
-_env.probe_proxy()
 
 #===============================================================================
 class DataSource(object):
@@ -130,12 +117,12 @@ class Yahoo(DataSource):
         url = self.QUOTE_TODAY_URL % symbol
         _env.logger.debug("get_quote_today(): '%s'", url)
         try:
-            response = urlopen(url)
-            reader = csv.reader(response, delimiter=",", quotechar='"')
+            response = requests.get(url)
+            reader = csv.reader(StringIO(response.text), delimiter=",", quotechar='"')
             for row in reader:
                 if row[0] == symbol and row[1] != "N/A":
-                    #print pandas.to_datetime(row[1]).date(), date.today()
-                    if pandas.to_datetime(row[1]).date() == date.today():
+                    # print(to_datetime(row[1]).date(), date.today())
+                    if to_datetime(row[1]).date() == date.today():
                         _env.logger.info("get_quote_today(): %s => price: %s, updown: %s",
                                         row[0], row[5], row[8].replace(" - ", ", "))
                         rs = {  "Open"      : float(row[2]) if row[2] != "N/A" else nan,
@@ -151,7 +138,7 @@ class Yahoo(DataSource):
                             if numpy.isnan(rs["Open"]): rs["Open"] = rs["Low"]
 
                         return rs
-        except HTTPError, e:
+        except HTTPError as e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
 
@@ -216,15 +203,15 @@ class NetEase(DataSource):
         url = self.STOCK_SEARCH_URL % code
         _env.logger.debug("get_symbol_name(): '%s'", url)
         try:
-            response = urlopen(url)
-            data = response.read()
+            response = requests.get(url)
+            data = response.text
             start, end = data.find("(") + 1, data.find(")")
             data = data[start:end]
             data = json.loads(data)
             for stk in data:
                 if stk["type"] == _type:
                     return stk["name"]
-        except HTTPError, e:
+        except HTTPError as e:
             _env.logger.debug("open '%s' result error.\n%s", url, fmt_err_msg(e))
 
 
@@ -282,13 +269,13 @@ class NetEase(DataSource):
         url = self.FHPG_URL % code
         _env.logger.debug("get_split_history(): '%s'", url)
         try:
-            response = urlopen(url)
-            data = response.read().decode("utf-8")
+            response = requests.get(url)
+            data = response.text
             parser = MyHTMLParser()
             parser.feed(data)
             if len(parser.result) > 0:
                 return parser.result
-        except HTTPError, e:
+        except HTTPError as e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
     #---------------------------------------------------------------------------
@@ -331,23 +318,15 @@ class NetEase(DataSource):
                                 "fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;VOTURNOVER;VATURNOVER",
                                ])
     def retrieve_history(self, symbol, _start, _end):
-        start, end = _sanitize_dates(_start, _end)
+        start, end = to_datetime(_start), to_datetime(_end)
         code = self._code7(symbol)
 
         url = self.HISTORY_DATA_URL % (code, start.strftime('%Y%m%d'), end.strftime('%Y%m%d'))
         try:
             _env.logger.debug("retrieve_history(): url='%s'", url)
-            response = urlopen(url)
+            response = requests.get(url)
 
-            # skip empty lines in head
-            sio = StringIO(response.read())
-            sio.seek(0, 0)
-            while True:
-                c = sio.read(1)
-                if not c.isspace(): break
-            sio.seek(-1, 1)
-
-            rs = pandas.read_csv(sio, encoding="GBK", index_col=0, parse_dates=True)
+            rs = pandas.read_csv(StringIO(response.text), index_col=0, parse_dates=True)
             #日期,股票代码,名称,收盘价,最高价,最低价,开盘价,前收盘,涨跌额,涨跌幅,成交量,成交金额
             h = rs[[u"开盘价", u"最高价", u"最低价", u"收盘价", u"成交量", u"收盘价"]].copy()
             h.columns = Market.HISTORY_COLUMNS
@@ -359,7 +338,7 @@ class NetEase(DataSource):
             h.sort(ascending=True, inplace=True) # expect data to be ascending
 
             return h
-        except HTTPError, e:
+        except HTTPError as e:
             _env.logger.debug("retrieve_history(): '%s' error:\n%s", url, e)
 
     #---------------------------------------------------------------------------
@@ -369,8 +348,8 @@ class NetEase(DataSource):
         url = self.QUOTE_TODAY_URL % code
         _env.logger.debug("get_quote_today(): '%s'", url)
         try:
-            response = urlopen(url)
-            data = response.read()
+            response = requests.get(url)
+            data = response.text
             start, end = data.find("(") + 1, data.find(")")
             data = data[start:end]
             data = json.loads(data)[code]
@@ -385,7 +364,7 @@ class NetEase(DataSource):
             _env.logger.info("get_quote_today(): %s => price: %.2f, updown: %.2f, %.2f%%",
                              symbol, rs["Close"], data["updown"], data["updown"]*100/data["yestclose"])
             return rs
-        except HTTPError, e:
+        except HTTPError as e:
             _env.logger.debug("open '%s' result error.\n%s", url, e)
 
 
@@ -542,7 +521,7 @@ class NasdaQ(Market):
         }
         self.datasource = self.datasources["yahoo"]
         self.name = name
-        self.name_cache = shelve.open("name.cache.%s" % self.name)
+        self.name_cache = shelve.open(join("cache", "name.cache.%s" % self.name))
 
 
 #===============================================================================
@@ -577,7 +556,7 @@ class ChinaA(Market):
         self.datasources = { "netease": NetEase() }
         self.datasource = self.datasources["netease"]
         self.name = name
-        self.name_cache = shelve.open("name.cache.%s" % self.name)
+        self.name_cache = shelve.open(join("cache", "name.cache.%s" % self.name))
 
 
 #===============================================================================
@@ -1042,14 +1021,14 @@ class Stock(object):
         #days = WeekdayLocator(FRIDAY)
         #dayFmt = DateFormatter("%d")
         def _dayFmt(x, pos):
-            dt = pylab.num2date(x)
+            dt = num2date(x)
             return dt.strftime("%d")[-1] if dt.day < 10 else dt.strftime("%d")
         dayFmt = FuncFormatter(_dayFmt)
 
         months  = MonthLocator(range(1, 13), bymonthday=1, interval=1)
         # http://stackoverflow.com/questions/11623498/date-formatting-with-matplotlib
         def _monthFmt(x, pos):
-            dt = pylab.num2date(x)
+            dt = num2date(x)
             return dt.strftime('\n%Y') if dt.month == 1 else dt.strftime("\n%b")
         monthFmt = FuncFormatter(_monthFmt)
 

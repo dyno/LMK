@@ -1,14 +1,15 @@
 #!/usr/bin/python
 # vim: set fileencoding=utf-8 :
 
+import matplotlib
+matplotlib.use("Agg")
+
 import logging
 from datetime import timedelta
 from one import Environment, Stock
 
 _env = Environment()
-_env.init_log(loglevel=logging.INFO)
 _env.init_log(loglevel=logging.DEBUG)
-print "Are we using proxy? %s" % ("Yes" if _env.probe_proxy() else "No", )
 
 check_list = True
 for symbol in (
@@ -27,7 +28,7 @@ for symbol in (
                "GGAL", "SSRI",
                "SINA", "YOKU",
                "AMBA", "HIMX",
-               "---"
+               "-x-"
                "ANET", #"XNET",
                "-x-",
                "WETF#ds=google",
@@ -61,7 +62,7 @@ for symbol in (
     #stk.process_history(freq="W-MON")
     stk.process_history(freq="D")
     h = stk.history
-    print h.tail(2)
+    print(h.tail(2))
 
     def index(symbol):
         if symbol.startswith("^"): return True
