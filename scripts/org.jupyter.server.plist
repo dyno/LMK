@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+
+<dict>
+        <key>Label</key>
+        <string>org.ipython.server</string>
+
+        <key>Disabled</key>
+        <false/>
+        <key>RunAtLoad</key>
+        <true/>
+
+        <key>WorkingDirectory</key>
+        <string>/Users/dyno/gitroot/ipython_notebook</string>
+        <key>StandardErrorPath</key>
+        <string>/Users/dyno/gitroot/ipython_notebook/logs/launchd.stderr</string>
+        <key>StandardOutPath</key>
+        <string>/Users/dyno/gitroot/ipython_notebook/logs/launchd.stdout</string>
+
+        <key>ProgramArguments</key>
+        <array>
+                <string>/Users/dyno/gitroot/ipython_notebook/launchd_wrapper.sh</string>
+        </array>
+</dict>
+</plist>
