@@ -23,7 +23,8 @@ from lmk.calculator.ATRCalculator import ATRCalculator
 from lmk.calculator.EntryPointCalculator import EntryPointCalculator, BUY, SELL
 from lmk.calculator.ODRCalculator import ODRCalculator
 from lmk.calculator.PivotCalculator import PivotCalculator
-from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic, LMKBandCalculatorPivot
+#from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic as LMKBandCalculator
+from lmk.calculator.LMKBandCalculator import LMKBandCalculatorPivot as LMKBandCalculator
 from lmk.calculator.LMKBandCalculator import BAND_UPWARD, BAND_NAT_RALLY, BAND_SEC_RALLY, \
                                              BAND_SEC_REACT, BAND_NAT_REACT, BAND_DNWARD, BAND_UNKNOWN
 from lmk.utils import env
@@ -111,9 +112,11 @@ class Ticker:
         h.fillna(method="backfill", axis=0, inplace=True)
 
         # ** LMK ** => Livermore Market Key
-        #c = LMKBandCalculator(atr_factor=atr_factor)
-        #band_watermark = h.apply(c, axis=1)
+        c = LMKBandCalculator(atr_factor=atr_factor)
+        band_watermark = h.apply(c, axis=1)
         #h = pandas.merge(h, band_watermark, left_index=True, right_index=True, sort=False)
+        h["WM"] = band_watermark["WM"]
+        h["BAND"] = band_watermark["BAND"]
 
         self.history = h
 

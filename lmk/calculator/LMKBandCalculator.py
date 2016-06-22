@@ -23,6 +23,14 @@ BAND_NAT_REACT  = 2
 BAND_DNWARD     = 1
 BAND_UNKNOWN    = 0
 
+
+def normalize(band):
+    if band > BAND_UPWARD: band = BAND_UPWARD
+    if band < BAND_DNWARD: band = BAND_DNWARD
+
+    return band
+
+
 class LMKBandCalculatorPivot(object):
     def __init__(self, atr_factor=1.0):
         self.atr_factor = atr_factor * 2.0
@@ -33,13 +41,6 @@ class LMKBandCalculatorPivot(object):
         self.last_water_mark = None
 
     def __call__(self, tick):
-        def normalize(band):
-            if band > BAND_UPWARD: band = BAND_UPWARD
-            if band < BAND_DNWARD: band = BAND_DNWARD
-
-            return band
-
-        #-----------------------------------------------------------------------
         #assert tick["ATR"] != 0, "ATR should not be zero."
         # RRST @ 2014-01-02, and use 0.001 to avoid dividing by zero.
         if tick["ATR"] == 0:
@@ -59,7 +60,7 @@ class LMKBandCalculatorPivot(object):
             water_mark = self.sppt
             self.last_pivot = tick.copy()
 
-        elif self.last_pivot:
+        elif self.last_pivot is not None:
             # trending downward ...
             if self.last_pivot["Top"]:
                 band = normalize(6 - int(math.floor((self.rsst - close_) / (band_width / 6.0))))
@@ -67,8 +68,9 @@ class LMKBandCalculatorPivot(object):
             elif self.last_pivot["Btm"]:
                 band = normalize(int(math.ceil((close_ - self.sppt) / (band_width / 6.0))))
 
-            env.logger.debug("%s=>close_=%.2f, from %s, rsst=%.2f, sppt=%.2f, band=%d, band_width=%.2f",
-                             tick.name.strftime("%Y-%m-%d"), close_, self.last_pivot["Close"], self.rsst, self.sppt, band, band_width)
+            # print(tick.name.strftime("%Y-%m-%d"), close_, self.last_pivot["Close"], self.rsst, self.sppt, band, band_width)
+
+            water_mark = self.last_water_mark
 
             if band >= BAND_SEC_RALLY:
                 if close_ > water_mark:
@@ -76,7 +78,7 @@ class LMKBandCalculatorPivot(object):
                     if band == BAND_UPWARD:
                         self.rsst = water_mark
 
-            if band <= BAND_SEC_REACT:
+            elif band <= BAND_SEC_REACT:
                 if close_ < water_mark:
                     water_mark = close_
                     if band == BAND_DNWARD:
