@@ -6,14 +6,28 @@ from operator import gt, lt
 from datetime import datetime, date, timedelta
 from collections import namedtuple
 
-import matplotlib
-matplotlib.use('Agg')
+# http://ipython.readthedocs.io/en/stable/interactive/magics.html#magic-matplotlib
+#%matplotlib inline
+
+# http://matplotlib.org/users/customizing.html
+#import matplotlib
+#matplotlib.rcParams['figure.figsize'] = (19, 6)
+#matplotlib.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei']
+
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
 from matplotlib.dates import num2date
 from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY, FRIDAY
 
+# http://stackoverflow.com/questions/11707586/python-pandas-widen-output-display
 import pandas
+#pandas.set_option('display.max_columns', 500)
+#pandas.set_option('display.width', 200)
+
+import warnings
+from pandas.core.common import SettingWithCopyWarning
+warnings.simplefilter('error',SettingWithCopyWarning)
+
 from numpy import ma, nan
 from dateutil.relativedelta import relativedelta, MO, TH
 
@@ -23,21 +37,14 @@ from lmk.calculator.ATRCalculator import ATRCalculator
 from lmk.calculator.EntryPointCalculator import EntryPointCalculator, BUY, SELL
 from lmk.calculator.ODRCalculator import ODRCalculator
 from lmk.calculator.PivotCalculator import PivotCalculator
-#from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic as LMKBandCalculator
-from lmk.calculator.LMKBandCalculator import LMKBandCalculatorPivot as LMKBandCalculator
-from lmk.calculator.LMKBandCalculator import BAND_UPWARD, BAND_NAT_RALLY, BAND_SEC_RALLY, \
-                                             BAND_SEC_REACT, BAND_NAT_REACT, BAND_DNWARD, BAND_UNKNOWN
+from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic
+from lmk.calculator.LMKBandCalculator import LMKBandCalculatorPivot
+from lmk.calculator.LMKBandCalculator import (
+    BAND_UPWARD, BAND_NAT_RALLY, BAND_SEC_RALLY,
+    BAND_SEC_REACT, BAND_NAT_REACT, BAND_DNWARD, BAND_UNKNOWN,
+    TREND_UP, TREND_DN, TREND_UNKNOWN)
+
 from lmk.utils import env
-
-import warnings
-from pandas.core.common import SettingWithCopyWarning
-warnings.simplefilter('error',SettingWithCopyWarning)
-
-pandas.set_option('display.max_columns', 500)
-pandas.set_option('display.width', 200)
-plt.rcParams['figure.figsize'] = (19, 6)
-# http://www.vartang.com/2014/04/matplotlib-plot/
-plt.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei']
 
 
 class Ticker:
@@ -112,15 +119,18 @@ class Ticker:
         h.fillna(method="backfill", axis=0, inplace=True)
 
         # ** LMK ** => Livermore Market Key
-        c = LMKBandCalculator(atr_factor=atr_factor)
-        band_watermark = h.apply(c, axis=1)
-        #h = pandas.merge(h, band_watermark, left_index=True, right_index=True, sort=False)
-        h["WM"] = band_watermark["WM"]
-        h["BAND"] = band_watermark["BAND"]
+        c = LMKBandCalculatorPivot(atr_factor=atr_factor)
+        df = h.apply(c, axis=1)
+        h["WM"], h["BAND"] = df["WM"], df["BAND"]
+
+        start_pivot = h[h["Top"] | h["Btm"]].ix[0]
+        c = LMKBandCalculatorHeuristic(start_pivot, atr_factor=atr_factor)
+        df = h.apply(c, axis=1)
+        h["Trend2"], h["WM2"], h["BAND2"] = df["Trend2"], df["WM2"], df["BAND2"]
 
         self.history = h
 
-    def visualize(self, components="C,CL,HLC,BAND,BANDL,WM,PV,PVL,ODR,EE,BS", fluct_factor=.5):
+    def visualize(self, components="C,CL,HLC,BAND,BAND2,LMK,BANDL,WM,WM2,PV,PVL,ODR,EE,BS", fluct_factor=.5):
         components = re.split("[-:,;.]", components)
         h = self.history
 
@@ -160,17 +170,23 @@ class Ticker:
             r = h.query("WM > 0")
             ax0.plot(r.index, r["WM"], "c-", drawstyle="steps-post", alpha=1.0)
 
+        if "WM2" in components:
+            chosen = ma.masked_where(~(h['Trend2'] == TREND_UP), h["WM2"])
+            ax0.plot(h.index, chosen, drawstyle="steps-post", color="g")
+            chosen = ma.masked_where(~(h['Trend2'] == TREND_DN), h["WM2"])
+            ax0.plot(h.index, chosen, drawstyle="steps-post", color="r")
+
         # Pivots, major Trend
         pivots = h.query("Top == True or Btm == True")
 
-        if "PVL" in components: # pivot line
+        if "PVL" in components: # Pivot Line
             ax0.plot(pivots.index, pivots["Close"], "-", color="blue", alpha=.3)
             rs = h[h["Top"]]
             ax0.plot(rs.index, rs["Close"], "g^", alpha=1.0)
             rs = h[h["Btm"]]
             ax0.plot(rs.index, rs["Close"], "rv", alpha=1.0)
 
-        if "PV" in components: # pivot label
+        if "PV" in components: # Pivot Value Label
             for x, tick in pivots.iterrows():
                 if tick["Top"]:
                     y = tick["High"]
@@ -182,53 +198,56 @@ class Ticker:
         # Basic High/Low/Close/Volume Chart
         # Ups ...
         rs = h.query("CC >= 0")
-        # Volume
         ax1.bar(rs.index, rs["Volume"], width=1, color="black", edgecolor="black", linewidth=1, alpha=.3, align="center")
         if "C" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
-        if "HLC" in components:
+        if "HLC" in components: # High, Low, Close
             ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
             rs = h.query("Close >= Open")
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
 
         # Downs ...
         rs = h.query("CC < 0")
-        # Volume
         ax1.bar(rs.index, rs["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=.3, align="center")
         if "C" in components:
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
-        if "HLC" in components:
+        if "HLC" in components: # High, Low, Close
             ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
             rs = h.query("Close < Open")
             ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
 
+        # BAND
+        style_dict = {
+            BAND_DNWARD     : "rv",
+            BAND_NAT_REACT  : "m<",
+            BAND_SEC_REACT  : "m*",
+            BAND_SEC_RALLY  : "c*",
+            BAND_NAT_RALLY  : "c>",
+            BAND_UPWARD     : "g^",
+        }
         if "BAND" in components:
-            style_dict = {
-                BAND_DNWARD     : "rv",
-                BAND_NAT_REACT  : "m<",
-                BAND_SEC_REACT  : "m*",
-                BAND_SEC_RALLY  : "c*",
-                BAND_NAT_RALLY  : "c>",
-                BAND_UPWARD     : "g^",
-            }
             for band in range(BAND_DNWARD, BAND_UPWARD + 1):
                 #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
-                rs = h.query("WM == Close and BAND == %s" % band)
+                rs = h.query("WM == Close and BAND == %d" % band)
                 ax0.plot(rs.index, rs["Close"], style_dict[band], alpha=1.0)
+
+        if "BAND2" in components or "LMK" in components:
+            for band in range(BAND_DNWARD, BAND_UPWARD + 1):
+                #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
+                rs = h.query("WM2 == Close and BAND2 == %d" % band)
+                ax0.plot(rs.index, rs["Close"], style_dict[band], alpha=1.0)
+
+
 
         if "BANDL" in components:
             # up trend
-            mask = ma.make_mask(h.index)
-            mask = ma.masked_where(((h["BAND"] >= BAND_NAT_REACT) | (h["EE"] == "B")) & (h["EE"] != "S"), mask)
-            chosen = ma.masked_where(~mask.mask, h["Close"])
+            chosen = ma.masked_where(~(h["BAND"] >= BAND_NAT_REACT | h["Buy"]), h["Close"])
             if chosen.any():
                 ax0.plot(h.index, chosen, "g-", linewidth=1, alpha=1)
             # down trend
-            mask = ma.make_mask(h.index)
-            mask = ma.masked_where(((h["BAND"] <= BAND_NAT_REACT) | (h["EE"] == "S")) & (h["EE"] != "B"), mask)
-            chosen = ma.masked_where(~mask.mask, h["Close"])
+            chosen = ma.masked_where(~(h["BAND"] <= BAND_NAT_REACT | h["Sell"]), h["Close"])
             if chosen.any():
-                ax0.plot(h.index, chosen, "r-", linewidth=1, alpha=.5)
+                ax0.plot(h.index, chosen, "r-", linewidth=1, alpha=1)
 
         # ODR => One Day Reversal
         if "ODR" in components:
