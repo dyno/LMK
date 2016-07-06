@@ -339,12 +339,21 @@ class Ticker:
                 ax.plot(h.index, chosen, "r-", linewidth=1, alpha=1)
 
         @plot_elements("WM")
-        @columns("Trend", "WM")
+        @columns("Trend", "WM", "ATR")
         def plot_WM(ax, h):
             chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"])
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="g")
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="g", linewidth=1.5)
+            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"] - h["ATR"] * 2.0)
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="r", alpha=.5)
+            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"] - h["ATR"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=.2)
+
             chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"])
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="r")
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="r", linewidth=1.5)
+            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"] + h["ATR"] * 2.0)
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="g", alpha=.5)
+            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"] + h["ATR"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=.2)
 
         @plot_elements("EE", "BS")
         @columns("Buy", "Sell", "Close")
