@@ -2,13 +2,18 @@ import unittest
 import logging
 from operator import gt, lt
 
+# XXX: workaround matplotlib problem running in pyenv.
+import matplotlib
+matplotlib.use("Agg")
+
 from lmk.utils import env
-from lmk.ticker import Ticker
+from lmk.ticker import Ticker, ensure_columns_exist
 from lmk.calculator.PivotCalculator import PivotCalculator
 from lmk.calculator.ATRCalculator import ATRCalculator
 from lmk.calculator.ODRCalculator import ODRCalculator
 from lmk.calculator.EntryPointCalculator import EntryPointCalculator, BUY, SELL
-
+from lmk.calculator.LMKBandCalculator import (LMKBandCalculatorHeuristic,
+    TREND_UP, TREND_DN, BAND_UPWARD, BAND_DNWARD)
 
 # XXX: http://stackoverflow.com/questions/4095319/unittest-tests-order
 
@@ -89,9 +94,20 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertEqual(len(h[h["ODR"] == True]), 4)
         self.assertTrue(h["ODR"]["2016-01-08"])
 
-    def _test_LMKBandCalculator(self):
-        pass
+    def test_LMKBandCalculator(self):
+        self.ticker.preprocess_history()
+        h = self.ticker.history
+        ensure_columns_exist(h, ["Top", "Btm"])
 
+        start_pivot = h[h["Top"] | h["Btm"]].ix[0]
+        self.assertEqual(start_pivot["Top"], True)
+
+        c = LMKBandCalculatorHeuristic(start_pivot, atr_factor=1.0)
+        df = h.apply(c, axis=1)
+        h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
+        self.assertEqual(h["Trend"]["2015-01-22"], TREND_DN)
+        self.assertEqual("{:.2f}".format(h["WM"]["2015-05-15"]), "248.84")
+        self.assertEqual(h["Band"]["2015-05-29"], BAND_UPWARD)
 
 if __name__ == '__main__':
     unittest.main()

@@ -324,7 +324,7 @@ class Ticker:
         def plot_BAND(ax, h):
              for band in range(BAND_DNWARD, BAND_UPWARD + 1):
                 #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
-                r = h[h["WM"] == h["Close"] & h["Band"] == band)
+                r = h[h["WM"] == h["Close"] & h["Band"] == band]
                 ax0.plot(r.index, r["Close"], BAND_STYLE_MAP[band], alpha=1.0)
 
         @plot_elements("BANDL")
