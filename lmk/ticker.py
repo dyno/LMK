@@ -324,17 +324,17 @@ class Ticker:
         def plot_BAND(ax, h):
              for band in range(BAND_DNWARD, BAND_UPWARD + 1):
                 #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
-                r = h[h["WM"] == h["Close"] & h["Band"] == band]
+                r = h[(h["WM"] == h["Close"]) & (h["Band"] == band)]
                 ax0.plot(r.index, r["Close"], BAND_STYLE_MAP[band], alpha=1.0)
 
         @plot_elements("BANDL")
         @columns("Band", "Buy", "Sell", "Close")
         def plot_BANDL(ax, h):
-            chosen = ma.masked_where(~(h["Band"] >= BAND_NAT_REACT | h["Buy"]), h["Close"])
+            chosen = ma.masked_where(~(h["Band"] >= BAND_NAT_RALLY), h["Close"])
             if chosen.any():
                 ax.plot(h.index, chosen, "g-", linewidth=1, alpha=1)
 
-            chosen = ma.masked_where(~(h["Band"] <= BAND_NAT_REACT | h["Sell"]), h["Close"])
+            chosen = ma.masked_where(~(h["Band"] <= BAND_NAT_REACT), h["Close"])
             if chosen.any():
                 ax.plot(h.index, chosen, "r-", linewidth=1, alpha=1)
 
