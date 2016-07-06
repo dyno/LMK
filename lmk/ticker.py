@@ -2,6 +2,7 @@
 # vim: set fileencoding=utf-8 :
 
 import re
+import functools
 from operator import gt, lt
 from datetime import datetime, date, timedelta
 from collections import namedtuple
@@ -47,6 +48,58 @@ from lmk.calculator.LMKBandCalculator import (
 from lmk.utils import env
 
 
+# ------------------------------------------------------------------------------
+def ensure_columns_exist(h, columns):
+    columns = list(set(columns) - set(h.columns))
+    if not columns: return h
+
+    # XXX: make it configurable
+    pivot_window_size = 5
+    atr_factor = 1.0
+
+    if "CC" in columns:
+        # necessary to calculate updown
+        h["CC"] = h["Close"].pct_change()
+        h.fillna(method="backfill", axis=0, inplace=True)
+
+    if "ODR" in columns:
+        # ** ODR ** => One Day Reversal
+        c = ODRCalculator()
+        h["ODR"] = h.apply(c, axis=1)
+
+    if "Top" in columns or "Btm" in columns:
+        # ** Pivot ** => Local peaks and valleys. Pivot points is necessary to calculate band
+        c = PivotCalculator(window_size=pivot_window_size, cmp=gt)
+        h["Close"].apply(c)
+        h["Top"] = c.result
+        c = PivotCalculator(window_size=pivot_window_size, cmp=lt)
+        h["Close"].apply(c)
+        h["Btm"] = c.result
+
+    if "Buy" in columns or "Sell" in columns:
+        # ** EntryPoint ** => Entry/Exit
+        ensure_columns_exist(h, ["Top", "Btm"])
+        c = EntryPointCalculator(trade_type=BUY, atr_factor=atr_factor)
+        h["Buy"] = h.apply(c, axis=1)
+        c = EntryPointCalculator(trade_type=SELL, atr_factor=atr_factor)
+        h["Sell"] = h.apply(c, axis=1)
+
+    if "WM" in columns or "Trend" in columns or "Band" in columns:
+        # ** LMK ** => Livermore Market Key
+#            c = LMKBandCalculatorPivot(atr_factor=atr_factor)
+#            df = h.apply(c, axis=1)
+#            h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
+
+        ensure_columns_exist(h, ["Top", "Btm"])
+        start_pivot = h[h["Top"] | h["Btm"]].ix[0]
+        c = LMKBandCalculatorHeuristic(start_pivot, atr_factor=atr_factor)
+        df = h.apply(c, axis=1)
+        h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
+
+    return h
+
+
+# ------------------------------------------------------------------------------
 class Ticker:
 
     def __init__(self, symbol, ds=None):
@@ -68,10 +121,10 @@ class Ticker:
 
         return self.history
 
-    def process_history(self, freq="D", pivot_window_size=5, atr_factor=1.0):
+    def preprocess_history(self, freq="D", atr_factor=1.0):
         h = self.history
 
-        # without .copy(), you will get SettingWithCopyWarning somewhere ...
+        # http://chrisalbon.com/python/pandas_dropping_column_and_rows.html
         h = h[h["Volume"] != 0].copy()
 
         # ** ATR ** => Average True Range
@@ -80,13 +133,14 @@ class Ticker:
         h.fillna(method="backfill", axis=0, inplace=True)
 
         if freq != "D":
-            resampled = pandas.DataFrame(h["Close"].resample(freq, how="last"), columns=("Close",))
-            resampled["Open"] = h["Open"].resample(freq, how="first")
-            resampled["High"] = h["High"].resample(freq, how="max")
-            resampled["Low"] = h["Low"].resample(freq, how="min")
-            resampled["Volume"] = h["Volume"].resample(freq, how="sum")
+            resampled = pandas.DataFrame(h["Close"].resample(freq).last(), columns=["Close"])
+            resampled["Open"] = h["Open"].resample(freq).first()
+            resampled["High"] = h["High"].resample(freq).max()
+            resampled["Low"] = h["Low"].resample(freq).min()
+            resampled["Volume"] = h["Volume"].resample(freq).sum()
+
             assert "ATR" in h.columns, "ATR needs to be processed in daily data!"
-            resampled["ATR"] = h["ATR"].resample(freq, how="last")
+            resampled["ATR"] = h["ATR"].resample(freq).last()
 
             self.history = resampled
             h = self.history
@@ -96,45 +150,40 @@ class Ticker:
         if dropped is not None:
             env.logger.debug("NA dropped: %s" % dropped)
 
-        # ** ODR ** => One Day Reversal
-        c = ODRCalculator()
-        h["ODR"] = h.apply(c, axis=1)
-
-        # ** Pivot ** => Local peaks and valleys. Pivot points is necessary to calculate band
-        c = PivotCalculator(window_size=pivot_window_size, cmp=gt)
-        h["Close"].apply(c)
-        h["Top"] = c.result
-        c = PivotCalculator(window_size=pivot_window_size, cmp=lt)
-        h["Close"].apply(c)
-        h["Btm"] = c.result
-
-        # ** EntryPoint ** => Entry/Exit
-        c = EntryPointCalculator(trade_type=BUY, atr_factor=atr_factor)
-        h["Buy"] = h.apply(c, axis=1)
-        c = EntryPointCalculator(trade_type=SELL, atr_factor=atr_factor)
-        h["Sell"] = h.apply(c, axis=1)
-
-        # necessary to calculate updown
-        h["CC"] = h["Close"].pct_change()
-        h.fillna(method="backfill", axis=0, inplace=True)
-
-        # ** LMK ** => Livermore Market Key
-        c = LMKBandCalculatorPivot(atr_factor=atr_factor)
-        df = h.apply(c, axis=1)
-        h["WM"], h["BAND"] = df["WM"], df["BAND"]
-
-        start_pivot = h[h["Top"] | h["Btm"]].ix[0]
-        c = LMKBandCalculatorHeuristic(start_pivot, atr_factor=atr_factor)
-        df = h.apply(c, axis=1)
-        h["Trend2"], h["WM2"], h["BAND2"] = df["Trend2"], df["WM2"], df["BAND2"]
-
         self.history = h
 
-    def visualize(self, components="C,CL,HLC,BAND,BAND2,LMK,BANDL,WM,WM2,PV,PVL,ODR,EE,BS", fluct_factor=.5):
-        components = re.split("[-:,;.]", components)
+        return self.history
+
+    def visualize(self, elements="C,CL,LMK,PV,PVL,ODR", ylimits=None):
+        """
+        elements: elements that should be plotted, see below.
+        ylimits: range of y axis. e.g. (0, 100)
+
+        { # element and its dependent columns
+          # Basic
+          "C"       : ["Close",],   # Mark the tick['Close'] value with point.
+          "CL"      : ["Close",],   # Mark the tick['Close'] value as a line.
+          "HLC"     : ["High", "Low", "Close"], # Plot the HLC values in the tick.
+
+          # Derived
+          "ODR"     : ["Open", "High", "Low", "Close", "Volume"],   # One Day Reversal. Mark the ODR ticks.
+
+          "PV"      : ["Close", "Top", "Btm"],  # Label the pivot point value.
+          "PVL"     : ["Close", "Top", "Btm"],  # Plot a Line that connects the pivot points.
+
+          "EE"      : ["Buy", "Sell"],  # Mark the idea Buy/Sell point.
+
+          "BAND"    : ["Band", "WM"],   # Mark the point with its current LMK Band Level.
+          "BANDL"   : ["Band", "Buy", "Sell"],  # Mark line segment according to its current band level.
+          "WM"      : ["Trend", "WM"],  # Mark the current resistant or support line
+        }
+        """
+
         h = self.history
 
-        #-----------------------------------------------------------------------
+        # --------------------------------------------------------------
+        # ---- Background and Limits ----
+
         ax0 = plt.subplot2grid((5,1), (0, 0), rowspan=4)
         ax0.set_xmargin(0.02)
         #http://stackoverflow.com/questions/3305865/what-is-the-difference-between-log-and-symlog
@@ -142,82 +191,126 @@ class Ticker:
         ax1 = plt.subplot2grid((5,1), (4, 0), rowspan=1, sharex=ax0)
         ax1.yaxis.set_visible(False)
         #ax1.set_yscale("symlog", linthreshy=1000)
-        figure = plt.gcf()
-        figure.suptitle("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)))
-        figure.subplots_adjust(hspace=0)
 
-        min_close = min(h["Close"])
-        max_close = max(h["Close"])
-        height = min_close * fluct_factor
-        ymin =  min_close * 0.98
-        ymax = min_close + (height * 1.02)
-        if ymax < max_close:
-            height = max_close - min_close
-            ymax = min_close + height * 1.02
-        ax0.set_ylim(ymin, ymax)
+        self.figure = plt.gcf()
+        #self.figure.clear()
+        self.figure.suptitle("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)))
+        self.figure.subplots_adjust(hspace=0)
+
+        if ylimits is not None:
+            ax0.set_ylim(*ylimits)
+        else:
+            close_min = min(h["Close"])
+            close_max = max(h["Close"])
+            height = close_min * .5
+            ymin =  close_min * 0.98
+            ymax = close_min + (height * 1.02)
+            if ymax < close_max:
+                height = close_max - close_min
+                ymax = close_min + height * 1.02
+            ax0.set_ylim(ymin, ymax)
 
         ax0.set_axis_bgcolor('white')
         ax1.set_axis_bgcolor('white')
 
+        # --------------------------------------------------------------
 
-        #-----------------------------------------------------------------------
-        # Basic price line
-        if "CL" in components: # Close Line
-            ax0.plot(h.index, h["Close"], "-", color="black", alpha=0.5)
+        # http://stackoverflow.com/questions/1166118/how-to-strip-decorators-from-a-function-in-python
+        def plot_elements(*names):
+            def decorated(f):
 
-        # Water Mark
-        if "WM" in components:
-            r = h.query("WM > 0")
-            ax0.plot(r.index, r["WM"], "c-", drawstyle="steps-post", alpha=1.0)
+                @functools.wraps(f)
+                def wrapper(*argv, **kargs):
+                    return f(*argv, **kargs)
 
-        if "WM2" in components:
-            chosen = ma.masked_where(~(h['Trend2'] == TREND_UP), h["WM2"])
-            ax0.plot(h.index, chosen, drawstyle="steps-post", color="g")
-            chosen = ma.masked_where(~(h['Trend2'] == TREND_DN), h["WM2"])
-            ax0.plot(h.index, chosen, drawstyle="steps-post", color="r")
+                wrapper.elements = names
+                return wrapper
 
-        # Pivots, major Trend
-        pivots = h.query("Top == True or Btm == True")
+            return decorated
 
-        if "PVL" in components: # Pivot Line
-            ax0.plot(pivots.index, pivots["Close"], "-", color="blue", alpha=.3)
-            rs = h[h["Top"]]
-            ax0.plot(rs.index, rs["Close"], "g^", alpha=1.0)
-            rs = h[h["Btm"]]
-            ax0.plot(rs.index, rs["Close"], "rv", alpha=1.0)
+        def columns(*names):
+            def decorated(f):
 
-        if "PV" in components: # Pivot Value Label
+                @functools.wraps(f)
+                def wrapper(*argv, **kargs):
+                    h = argv[1]
+                    ensure_columns_exist(h, names)
+
+                    return f(*argv, **kargs)
+
+                return wrapper
+
+            return decorated
+
+
+        # -- Basic Volume/Price --
+        @plot_elements("V")
+        @columns("CC", "Volume")
+        def plot_V(ax, h):
+            up = h[h["CC"] >= 0]
+            ax.bar(up.index, up["Volume"], width=1, color="black", edgecolor="black", linewidth=1, alpha=.3, align="center")
+            dn = h[h["CC"] < 0]
+            ax.bar(dn.index, dn["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=.3, align="center")
+
+        @plot_elements("C")
+        @columns("Close", "CC")
+        def plot_C(ax, h):
+            up = h[h["CC"] >= 0]
+            ax.plot(up.index, up["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
+            dn = h[h["CC"] < 0]
+            ax0.plot(dn.index, dn["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
+
+        @plot_elements("CL")
+        @columns("Close")
+        def plot_CL(ax, h):
+            ax.plot(h.index, h["Close"], "-", color="black", alpha=0.5)
+
+        @plot_elements("HLC")
+        @columns("High", "Low", "Close", "CC")
+        def plot_HLC(ax, h):
+            up = h[h["CC"] >= 0]
+            ax.plot(up.index, up["Close"], "_", color="black", alpha=1, markeredgewidth=1)
+            up = h[h["Close"] >= h["Open"]]
+            ax.vlines(up.index, up["Low"], up["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
+
+            dn = h[h["CC"] < 0]
+            ax.plot(dn.index, dn["Close"], "_", color="red", alpha=1, markeredgewidth=1)
+            dn = h[h["Close"] < h["Open"]]
+            ax.vlines(dn.index, dn["Low"], dn["High"], color="red", edgecolor="red", alpha=1, linewidth=1)
+
+        # -- ODR --
+        @plot_elements("ODR")
+        @columns("ODR", "Close")
+        def plot_ODR(ax, h):
+            r = h[h["ODR"]]
+            ax.plot(r.index, r["Close"], "rx", markersize=8, markeredgewidth=3, alpha=1)
+
+        # -- Pivots --
+        @plot_elements("PV")
+        @columns("Top", "Btm", "Close", "Low", "High")
+        def plot_PV(ax, h):
+            pivots = h[h["Top"] | h["Btm"]]
             for x, tick in pivots.iterrows():
-                if tick["Top"]:
+                label = "%.2f" % tick["Close"]
+                if tick["Top"]: # crest
                     y = tick["High"]
-                else:
+                    ax.text(x, y, label, color="g", alpha=.8)
+                else:           # trough
                     y = tick["Low"]
-                s = "%.2f" % tick["Close"]
-                ax0.text(x, y, s, alpha=.5)
+                    ax.text(x, y, label, color="r", alpha=.8)
 
-        # Basic High/Low/Close/Volume Chart
-        # Ups ...
-        rs = h.query("CC >= 0")
-        ax1.bar(rs.index, rs["Volume"], width=1, color="black", edgecolor="black", linewidth=1, alpha=.3, align="center")
-        if "C" in components:
-            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
-        if "HLC" in components: # High, Low, Close
-            ax0.plot(rs.index, rs["Close"], "_", color="black", alpha=1, markeredgewidth=1)
-            rs = h.query("Close >= Open")
-            ax0.vlines(rs.index, rs["Low"], rs["High"], color="black", edgecolor="black", alpha=1, linewidth=1)
+        @plot_elements("PVL")
+        @columns("Top", "Btm", "Close")
+        def plot_PVL(ax, h):
+            pivots = h[h["Top"] | h["Btm"]]
+            ax.plot(pivots.index, pivots["Close"], "-", color="blue", alpha=.3)
+            r = h[h["Top"]]
+            ax.plot(r.index, r["Close"], "g^", alpha=1.0)
+            r = h[h["Btm"]]
+            ax.plot(r.index, r["Close"], "rv", alpha=1.0)
 
-        # Downs ...
-        rs = h.query("CC < 0")
-        ax1.bar(rs.index, rs["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=.3, align="center")
-        if "C" in components:
-            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
-        if "HLC" in components: # High, Low, Close
-            ax0.plot(rs.index, rs["Close"], "_", color="red", alpha=1, markeredgewidth=1)
-            rs = h.query("Close < Open")
-            ax0.vlines(rs.index, rs["Low"], rs["High"], color="red", alpha=1, linewidth=1)
-
-        # BAND
-        style_dict = {
+        # -- LMK --
+        BAND_STYLE_MAP = {
             BAND_DNWARD     : "rv",
             BAND_NAT_REACT  : "m<",
             BAND_SEC_REACT  : "m*",
@@ -225,46 +318,65 @@ class Ticker:
             BAND_NAT_RALLY  : "c>",
             BAND_UPWARD     : "g^",
         }
-        if "BAND" in components:
-            for band in range(BAND_DNWARD, BAND_UPWARD + 1):
+
+        @plot_elements("BAND", "LMK")
+        @columns("Close", "WM", "Band")
+        def plot_BAND(ax, h):
+             for band in range(BAND_DNWARD, BAND_UPWARD + 1):
                 #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
-                rs = h.query("WM == Close and BAND == %d" % band)
-                ax0.plot(rs.index, rs["Close"], style_dict[band], alpha=1.0)
+                r = h[h["WM"] == h["Close"] & h["Band"] == band)
+                ax0.plot(r.index, r["Close"], BAND_STYLE_MAP[band], alpha=1.0)
 
-        if "BAND2" in components or "LMK" in components:
-            for band in range(BAND_DNWARD, BAND_UPWARD + 1):
-                #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
-                rs = h.query("WM2 == Close and BAND2 == %d" % band)
-                ax0.plot(rs.index, rs["Close"], style_dict[band], alpha=1.0)
-
-
-
-        if "BANDL" in components:
-            # up trend
-            chosen = ma.masked_where(~(h["BAND"] >= BAND_NAT_REACT | h["Buy"]), h["Close"])
+        @plot_elements("BANDL")
+        @columns("Band", "Buy", "Sell", "Close")
+        def plot_BANDL(ax, h):
+            chosen = ma.masked_where(~(h["Band"] >= BAND_NAT_REACT | h["Buy"]), h["Close"])
             if chosen.any():
-                ax0.plot(h.index, chosen, "g-", linewidth=1, alpha=1)
-            # down trend
-            chosen = ma.masked_where(~(h["BAND"] <= BAND_NAT_REACT | h["Sell"]), h["Close"])
+                ax.plot(h.index, chosen, "g-", linewidth=1, alpha=1)
+
+            chosen = ma.masked_where(~(h["Band"] <= BAND_NAT_REACT | h["Sell"]), h["Close"])
             if chosen.any():
-                ax0.plot(h.index, chosen, "r-", linewidth=1, alpha=1)
+                ax.plot(h.index, chosen, "r-", linewidth=1, alpha=1)
 
-        # ODR => One Day Reversal
-        if "ODR" in components:
-            rs = h[h["ODR"]]
-            ax0.plot(rs.index, rs["Close"], "rx", markersize=8, markeredgewidth=3, alpha=1)
+        @plot_elements("WM")
+        @columns("Trend", "WM")
+        def plot_WM(ax, h):
+            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="g")
+            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="r")
 
-        # Entry/Exit Points
-        if "EE" in components or "BS" in components: # EE: Entry/Exit; BS: Buy/Sell
-            rs = h[h["Buy"]]
-            ax0.plot(rs.index, rs["Close"], "g+", markersize=8, markeredgewidth=3, alpha=1)
-            rs = h[h["Sell"]]
-            ax0.plot(rs.index, rs["Close"], "r_", markersize=8, markeredgewidth=3, alpha=1)
+        @plot_elements("EE", "BS")
+        @columns("Buy", "Sell", "Close")
+        def plot_EE(ax, h):
+            r = h[h["Buy"]]
+            ax0.plot(r.index, r["Close"], "g+", markersize=8, markeredgewidth=3, alpha=1)
+            r = h[h["Sell"]]
+            ax0.plot(r.index, r["Close"], "r_", markersize=8, markeredgewidth=3, alpha=1)
 
 
-        #-----------------------------------------------------------------------
+        # Build the plotting function map ...
+        plot_functions = [f for f in locals().values() if callable(f) and hasattr(f, "elements")]
+        plot_dict = {}
+        for f in plot_functions:
+            for element in f.elements:
+                plot_dict[element] = f
+
+        # do the real plotting ...
+        l = re.split("[-:,;.]", elements)
+        for c in l:
+            _plot = plot_dict[c]
+            if c != "V":
+                _plot(ax0, h)
+            else:
+                _plot(ax1, h)
+
+        # --------------------------------------------------------------
+        # ---- Axis and Grid ----
+
         days = WeekdayLocator(MONDAY)
         #days = WeekdayLocator(FRIDAY)
+
         #dayFmt = DateFormatter("%d")
         def _dayFmt(x, pos):
             dt = num2date(x)

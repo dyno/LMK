@@ -52,24 +52,30 @@ class LMKBandCalculatorPivot(object):
         close_ = tick["Close"]
 
         if tick["Top"]:
-            band = BAND_UPWARD
             self.rsst = close_
-            water_mark = self.rsst
             self.last_pivot = tick.copy()
 
+            band = BAND_UPWARD
+            trend = TREND_UP
+            water_mark = self.rsst
+
         elif tick["Btm"]:
-            band = BAND_DNWARD
             self.sppt = close_
-            water_mark = self.sppt
             self.last_pivot = tick.copy()
+
+            band = BAND_DNWARD
+            trend = TREND_DN
+            water_mark = self.sppt
 
         elif self.last_pivot is not None:
             # trending downward ...
             if self.last_pivot["Top"]:
                 band = normalize(6 - int(math.floor((self.rsst - close_) / (band_width / 6.0))))
+                trend = TREND_DN
             # trending upward ...
             elif self.last_pivot["Btm"]:
                 band = normalize(int(math.ceil((close_ - self.sppt) / (band_width / 6.0))))
+                trend = TREND_UP
 
             # print(tick.name.strftime("%Y-%m-%d"), close_, self.last_pivot["Close"], self.rsst, self.sppt, band, band_width)
 
@@ -89,11 +95,12 @@ class LMKBandCalculatorPivot(object):
 
         else: # no known pivot, no defined trend...
             band = BAND_UNKNOWN
+            trend = TREND_UNKNOWN
             water_mark = close_
 
         self.last_water_mark = water_mark
 
-        return pandas.Series({ "WM": water_mark, "BAND": band })
+        return pandas.Series({ "Trend": trend, "WM": water_mark, "Band": band })
 
 
 class LMKBandCalculatorHeuristic(object):
@@ -106,15 +113,15 @@ class LMKBandCalculatorHeuristic(object):
         self.start_pivot = start_pivot
         if start_pivot["Top"]:
             self.rsst = start_pivot["Close"]
-            self.trend = UP
+            self.trend = TREND_UP
         else:
             assert start_pivot["Btm"] == True
             self.sppt = start_pivot["Close"]
-            self.trend = DN
+            self.trend = TREND_DN
 
     def __call__(self, tick):
         if tick.name <= self.start_pivot.name:
-            return pandas.Series({ "Trend2": TREND_UNKNOWN, "WM2": 0, "BAND2": BAND_UNKNOWN})
+            return pandas.Series({ "Trend": TREND_UNKNOWN, "WM": 0, "Band": BAND_UNKNOWN})
 
         #assert tick["ATR"] != 0, "ATR should not be zero."
         # RRST @ 2014-01-02, and use 0.001 to avoid dividing by zero.
@@ -148,5 +155,5 @@ class LMKBandCalculatorHeuristic(object):
         elif self.trend == TREND_DN:
             water_mark = self.sppt
 
-        return pandas.Series({ "Trend2": self.trend, "WM2": water_mark, "BAND2": band })
+        return pandas.Series({ "Trend": self.trend, "WM": water_mark, "Band": band })
 
