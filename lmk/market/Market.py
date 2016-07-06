@@ -3,7 +3,7 @@ from os.path import join, exists
 from datetime import date, datetime, timedelta
 from collections import namedtuple
 
-from pandas import HDFStore, to_datetime
+from pandas import Series, DataFrame, DatetimeIndex, HDFStore, to_datetime
 
 from ..utils import env
 from ..config import CACHE_DIR
@@ -99,8 +99,8 @@ class Market(object):
             hd = self.datasource.retrieve_history(symbol, _start, _end)
             # patch head
             if hd.index[0].date() > start:
-                df = pandas.DataFrame(index=pandas.DatetimeIndex(start=start, end=start, freq="D"),
-                                      columns=Market.HISTORY_COLUMNS, dtype=float)
+                df = DataFrame(index=DatetimeIndex(start=start, end=start, freq="D"),
+                               columns=Market.HISTORY_COLUMNS, dtype=float)
                 df.ix[0] = hd.ix[0]
                 hd = df.append(hd)
                 #print hd.head()
@@ -109,11 +109,11 @@ class Market(object):
             store.flush()
 
         if patch_today:
-            df = pandas.DataFrame(index=pandas.DatetimeIndex(start=self.today, end=self.today, freq="D"),
+            df = DataFrame(index=DatetimeIndex(start=self.today, end=self.today, freq="D"),
                                   columns=Market.HISTORY_COLUMNS, dtype=float)
             row_today = self.datasource.get_quote_today(symbol)
             if row_today:
-                df.ix[0] = pandas.Series(row_today)
+                df.ix[0] = Series(row_today)
                 # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
                 df["Volume"] = df["Volume"].astype(int)
                 hd = hd.append(df)
