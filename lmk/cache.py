@@ -40,7 +40,9 @@ class Cache:
                     return h
 
     def put(self, symbol, history, start, end):
-        _symbol = symbol.replace(".", "_")
+        # HDF5 table name better to be a valid variable name.
+        # e.g. 000001.SS => t000001_SS; TSLA => tTSLA
+        _symbol = "t{}".format(symbol).replace(".", "_")
         if symbol in self.range:
             _start, _end = self.range.loc[symbol]
 
