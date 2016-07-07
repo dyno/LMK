@@ -91,7 +91,7 @@ def ensure_columns_exist(h, columns):
 #            h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
 
         ensure_columns_exist(h, ["Top", "Btm"])
-        start_pivot = h[h["Top"] | h["Btm"]].ix[0]
+        start_pivot = h[h["Top"] | h["Btm"]].iloc[0]
         c = LMKBandCalculatorHeuristic(start_pivot, atr_factor=atr_factor)
         df = h.apply(c, axis=1)
         h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]

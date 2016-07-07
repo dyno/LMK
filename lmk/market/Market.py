@@ -3,7 +3,7 @@ from os.path import join, exists
 from datetime import date, datetime, timedelta
 from collections import namedtuple
 
-from pandas import Series, DataFrame, DatetimeIndex, HDFStore, to_datetime
+from pandas import Series, Timestamp, to_datetime
 
 from ..utils import env
 from ..cache import Cache
@@ -71,7 +71,7 @@ class Market:
         h = self.cache.get(symbol, start, end)
         if h is None:
             do_patch_today = False
-            if end == self.today:
+            if end == self.today and self._trading_day():
                 do_patch_today = patch_today
                 # XXX: No today's data before market close. Even after the market close,
                 # the data might take some time to appear. We should not expect cache to have it.
@@ -87,7 +87,7 @@ class Market:
             if do_patch_today and self.today not in h.index:
                 r = self.datasource.get_quote_today(symbol)
                 if r:
-                    h.loc[self.today] = Series(r)
+                    h.loc[Timestamp(self._today)] = Series(r)
 
         assert h is not None
 
