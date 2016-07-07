@@ -28,12 +28,13 @@ ticker.visualize("V,C,CL,LMK,WM,PV")
 ├── book
 │   ├── 1938_1940.py
 │   └── 1938_1940.txt
-├── cache
 ├── lmk
+│   ├── __init__.py
+│   ├── cache.py
 │   ├── calculator
 │   │   ├── ATRCalculator.py
-│   │   ├── EntryExitCalculator.py
-│   │   ├── LMKCalculator.py
+│   │   ├── EntryPointCalculator.py
+│   │   ├── LMKBandCalculator.py
 │   │   ├── ODRCalculator.py
 │   │   └── PivotCalculator.py
 │   ├── datasource
@@ -45,15 +46,20 @@ ticker.visualize("V,C,CL,LMK,WM,PV")
 │   │   ├── China.py
 │   │   ├── Market.py
 │   │   └── US.py
+│   ├── test
+│   │   ├── __init__.py
+│   │   ├── test_calculator.py
+│   │   ├── test_datasource.py
+│   │   ├── test_market.py
+│   │   └── test_utils.py
+│   ├── ticker.py
 │   └── utils.py
-├── ticker.py
 ├── run.md
 ├── run_test.sh
-├── scripts
-│   ├── jupyter_notebook.md
-│   ├── launchd_wrapper.sh
-│   ├── org.jupyter.server.plist
-│   └── run_docker.sh
+└── scripts
+    ├── launchd_wrapper.sh
+    ├── org.jupyter.server.plist
+    └── run_docker.sh
 ```
 
 
@@ -66,6 +72,8 @@ ticker.visualize("V,C,CL,LMK,WM,PV")
 ## TODO List
 
 * multi-tickers in one graph (unlikely...)
+
+* zipline ...
 
 * --the cache layer-- see Market.py/cache.py
 
