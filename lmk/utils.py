@@ -4,9 +4,15 @@ from datetime import date, datetime
 from os.path import join, exists
 from os import makedirs
 
+from pandas import to_datetime
 from pytz import timezone
 
-from .config import CACHE_DIR
+
+def to_dt(dt_str):
+    try:
+        return datetime.strptime(dt_str, "%Y-%m-%d")
+    except:
+        return to_datetime(dt_str) # XXX: too slow...
 
 
 # http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
@@ -28,9 +34,6 @@ class Environment(object):
         self.tz = timezone("America/Los_Angeles")
         self._now = None
         self.__init_log(loglevel=logging.DEBUG)
-
-        if not exists(CACHE_DIR):
-            makedirs(CACHE_DIR)
 
     def __init_log(self, loglevel=logging.DEBUG):
 #        logging.basicConfig(level=loglevel,

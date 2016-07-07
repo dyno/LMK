@@ -4,7 +4,6 @@ from datetime import date, datetime
 from pytz import timezone
 from dateutil.relativedelta import relativedelta, MO, TH
 
-from ..config import CACHE_DIR
 from ..utils import Singleton
 from ..datasource.Yahoo import Yahoo
 from ..datasource.Google import Google
@@ -46,10 +45,4 @@ class US(Market):
             "google": Google(),
         }
         self.datasource = self.datasources["yahoo"]
-
-        self.name_cache = {}
-        cache_file = join(CACHE_DIR, "name.cache.%s" % self.name)
-        if exists(cache_file):
-            with open(cache_file) as f:
-                self.name_cache = json.load(f)
 

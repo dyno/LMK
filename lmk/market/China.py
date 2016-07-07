@@ -5,7 +5,6 @@ from datetime import date
 from pytz import timezone
 
 from ..utils import Singleton
-from ..config import CACHE_DIR
 from ..datasource.NetEase import NetEase
 from .Market import Market, TradeHour, TradeTime
 
@@ -79,14 +78,5 @@ class China(Market):
     def __init__(self, name="China"):
         super().__init__()
 
-        self.name = name
-
         self.datasources = { "netease": NetEase() }
         self.datasource = self.datasources["netease"]
-
-        self.name_cache = {}
-        cache_file = join(CACHE_DIR, "name.cache.%s" % self.name)
-        if exists(cache_file):
-            with open(cache_file) as f:
-                self.name_cache = json.load(f)
-

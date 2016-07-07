@@ -6,18 +6,19 @@ from collections import namedtuple
 from pandas import Series, DataFrame, DatetimeIndex, HDFStore, to_datetime
 
 from ..utils import env
-from ..config import CACHE_DIR
+from ..cache import Cache
 
 
 TradeHour = namedtuple('TradeHour', ['open', 'close'])
 TradeTime = namedtuple("TradeTime", ["hour", "minute"])
 
-class Market(object):
+class Market:
     HISTORY_COLUMNS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
 
     def __init__(self):
         self._now = None
         self.tz = None
+        self.cache = Cache()
 
     def _trading_day(self, dt=None):
         if not dt:
@@ -65,77 +66,50 @@ class Market(object):
     def closed(self):
         return not self.open
 
-    def retrieve_history(self, symbol, _start, _end=env._today, normalize=True):
-        start = to_datetime(_start).date()
-        end = to_datetime(_end).date()
-        while not self._trading_day(start):
-            start += timedelta(1)
-        if _end == env._today:
-            end = self.today
-            _end = self._today
+    def retrieve_history(self, symbol, _start, _end=env._today, normalize=True, patch_today=True):
+        start, end = to_datetime(_start).date(), to_datetime(_end).date()
+        h = self.cache.get(symbol, start, end)
+        if h is None:
+            do_patch_today = False
+            if end == self.today:
+                do_patch_today = patch_today
+                # XXX: No today's data before market close. Even after the market close,
+                # the data might take some time to appear. We should not expect cache to have it.
+                end = self.today - timedelta(1)
+                h = self.cache.get(symbol, start, end)
 
-        cache = join(CACHE_DIR, "%s.hd5" % symbol)
-        refresh, patch_today = True, False
+            if h is None:
+                h = self.datasource.retrieve_history(symbol, _start, _end)
+                if self.today in h.index:
+                    end = self.today
+                self.cache.put(symbol, h, start, end)
 
-        # no today's data is ok before market close
-        if end == self.today and not self.closed:
-            end = self.last_trading_day
-            patch_today = True
+            if do_patch_today and self.today not in h.index:
+                r = self.datasource.get_quote_today(symbol)
+                if r:
+                    h.loc[self.today] = Series(r)
 
-        if end > self.last_trading_day:
-            end = self.last_trading_day
-
-        if exists(cache):
-            store = HDFStore(cache)
-            hd = store.get("history_daily")
-            if start >= hd.index[0].date() and end <= hd.index[-1].date():
-                # http://stackoverflow.com/questions/16175874/python-pandas-dataframe-slicing-by-date-conditions
-                istart = hd.index.searchsorted(start)
-                iend = hd.index.searchsorted(end) + 1
-                refresh = False
-                hd = hd.ix[istart:iend]
-
-        if refresh:
-            hd = self.datasource.retrieve_history(symbol, _start, _end)
-            # patch head
-            if hd.index[0].date() > start:
-                df = DataFrame(index=DatetimeIndex(start=start, end=start, freq="D"),
-                               columns=Market.HISTORY_COLUMNS, dtype=float)
-                df.ix[0] = hd.ix[0]
-                hd = df.append(hd)
-                #print hd.head()
-            store = HDFStore(cache)
-            store.put("history_daily", hd)
-            store.flush()
-
-        if patch_today:
-            df = DataFrame(index=DatetimeIndex(start=self.today, end=self.today, freq="D"),
-                                  columns=Market.HISTORY_COLUMNS, dtype=float)
-            row_today = self.datasource.get_quote_today(symbol)
-            if row_today:
-                df.ix[0] = Series(row_today)
-                # http://stackoverflow.com/questions/15891038/pandas-change-data-type-of-columns
-                df["Volume"] = df["Volume"].astype(int)
-                hd = hd.append(df)
+        assert h is not None
 
         if normalize:
             # http://luminouslogic.com/how-to-normalize-historical-data-for-splits-dividends-etc.htm
-            hd["_Open"] = hd["Open"] * hd["Adj Close"] / hd["Close"]
-            hd["_High"] = hd["High"] * hd["Adj Close"] / hd["Close"]
-            hd["_Low"] = hd["Low"] * hd["Adj Close"] / hd["Close"]
-            hd["_Close"] = hd["Adj Close"]
-            #print hd.tail(30)
+            h["_Open"] = h["Open"] * h["Adj Close"] / h["Close"]
+            h["_High"] = h["High"] * h["Adj Close"] / h["Close"]
+            h["_Low"] = h["Low"] * h["Adj Close"] / h["Close"]
+            h["_Close"] = h["Adj Close"]
 
-            del hd["Open"], hd["High"], hd["Low"], hd["Close"], hd["Adj Close"]
-            hd.rename(columns=lambda c: c.replace('_', ''), inplace=True)
+            del h["Open"], h["High"], h["Low"], h["Close"], h["Adj Close"]
+            h.rename(columns=lambda c: c.replace('_', ''), inplace=True)
 
-            return hd
+            return h
 
     def get_symbol_name(self, symbol):
-        name = self.name_cache.get(symbol)
-        if not name:
+        if symbol in self.cache.name.index:
+            name = self.cache.name.loc[symbol]
+        else:
             name = self.datasource.get_symbol_name(symbol)
-            self.name_cache[symbol] = name
+            self.cache.name.loc[symbol] = name
+            self.cache.flush_name()
 
         return name
 
