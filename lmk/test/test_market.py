@@ -8,7 +8,7 @@ from lmk.market.China import China
 from lmk.market.US import US
 
 class MarketTestCase(unittest.TestCase):
-    """Tests for `market`."""
+    """Tests for `lmk.market.*`."""
 
     def setUp(self):
         #env.logger.setLevel(logging.WARN)

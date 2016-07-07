@@ -15,7 +15,6 @@ from lmk.ticker import Ticker
 
 ticker = Ticker("TSLA")
 ticker.retrieve_history("2015-06-01", "2016-04-30")
-ticker.resample_history(freq="D")
 ticker.visualize("V,C,CL,LMK,WM,PV")
 ```
 

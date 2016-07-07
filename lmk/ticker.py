@@ -116,13 +116,8 @@ class Ticker:
     def name(self):
         return self.market.get_symbol_name(self.symbol)
 
-    def retrieve_history(self, _start, _end):
-        self.history = self.market.retrieve_history(self.symbol, _start, _end)
-
-        return self.history
-
-    def preprocess_history(self, freq="D", atr_factor=1.0):
-        h = self.history
+    def retrieve_history(self, _start, _end, freq="D"):
+        h = self.market.retrieve_history(self.symbol, _start, _end)
 
         # http://chrisalbon.com/python/pandas_dropping_column_and_rows.html
         h = h[h["Volume"] != 0].copy()

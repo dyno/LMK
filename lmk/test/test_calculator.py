@@ -18,7 +18,7 @@ from lmk.calculator.LMKBandCalculator import (LMKBandCalculatorHeuristic,
 # XXX: http://stackoverflow.com/questions/4095319/unittest-tests-order
 
 class CalculatorTestCase(unittest.TestCase):
-    """Tests for `lmk.datasource.NetEase`."""
+    """Tests for `lmk.calculator.*`."""
 
     def setUp(self):
         #env.logger.setLevel(logging.WARN)
@@ -54,8 +54,6 @@ class CalculatorTestCase(unittest.TestCase):
     def test_ATRCalculator(self):
         # history[Open, High, Low, Close]
         h = self.ticker.history
-        if "ATR" in h:
-            return
 
         c = ATRCalculator(window_size=20)
         h["ATR"] = h.apply(c, axis=1)
@@ -70,6 +68,7 @@ class CalculatorTestCase(unittest.TestCase):
     def _test_EntryPointCalculator(self):
         # history[Close, Top, Btm, ATR]
         h = self.ticker.history
+
         c = ATRCalculator(window_size=20)
         h["ATR"] = h.apply(c, axis=1)
         c = EntryPointCalculator(trade_type=BUY)
@@ -95,7 +94,6 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertTrue(h["ODR"]["2016-01-08"])
 
     def test_LMKBandCalculator(self):
-        self.ticker.preprocess_history()
         h = self.ticker.history
         ensure_columns_exist(h, ["Top", "Btm"])
 
