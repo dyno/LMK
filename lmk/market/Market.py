@@ -15,9 +15,9 @@ TradeTime = namedtuple("TradeTime", ["hour", "minute"])
 class Market:
     HISTORY_COLUMNS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
 
+    tz = None
     def __init__(self):
         self._now = None
-        self.tz = None
         self.cache = Cache()
 
     def _trading_day(self, dt=None):
@@ -32,7 +32,7 @@ class Market:
 
     @now.setter
     def now(self, dt=None):
-        self._now = to_datetime(dt).to_datetime() if dt else None
+        self._now = to_datetime(dt) if dt else None
         if self._now:
             self._now.replace(tzinfo=self.tz)
 
