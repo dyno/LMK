@@ -43,6 +43,8 @@ ticker.retrieve_history("2015-06-01", "2016-04-30")
 ticker.visualize("V,C,CL,LMK,WM,PV")
 ```
 
+and github renders ```ipynb``` files, so here is what the above looks like.
+<https://github.com/dyno/LMK/blob/master/lmk.ipynb>
 
 ## File Layout
 
