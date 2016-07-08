@@ -26,10 +26,6 @@
 >>> from lmk.ticker import Ticker
 >>> from lmk.utils import env
 >>> env.logger.setLevel(logging.DEBUG)
-/Users/dyno/.pyenv/versions/3.5.1/envs/inotebook3/lib/python3.5/site-packages/matplotlib/font_manager.py:273: UserWarning: Matplotlib is building the font cache using fc-list. This may take a moment.
-  warnings.warn('Matplotlib is building the font cache using fc-list. This may take a moment.')
-/Users/dyno/.pyenv/versions/3.5.1/envs/inotebook3/lib/python3.5/site-packages/matplotlib/font_manager.py:273: UserWarning: Matplotlib is building the font cache using fc-list. This may take a moment.
-  warnings.warn('Matplotlib is building the font cache using fc-list. This may take a moment.')
 ```
 
 ```python
@@ -43,8 +39,6 @@
 >>> #stk.visualize("V,C,HLC,BANDL,WM,PV,PVL,EE,ODR", ylimits=(140,300))
 ... stk.visualize("V,C,BAND,WM,PV,ODR,EE", ylimits=(140,300))
 >>> stk.visualize("V,C,CL,HLC", ylimits=(140,300))
-DEBUG|Yahoo.py:30#get_quote_today()# url = 'http://download.finance.yahoo.com/d/quotes.csv?s=TSLA&f=sd1ohgl1vl1c'
- INFO|Yahoo.py:37#get_quote_today()# TSLA => price: 215.94, updown: +1.50, +0.70%
 ```
 
 ```python

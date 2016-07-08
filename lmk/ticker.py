@@ -116,8 +116,9 @@ class Ticker:
     def name(self):
         return self.market.get_symbol_name(self.symbol)
 
-    def retrieve_history(self, _start, _end, freq="D"):
-        h = self.market.retrieve_history(self.symbol, _start, _end)
+    def retrieve_history(self, _start, _end, freq="D", patch_today=True):
+        h = self.market.retrieve_history(self.symbol, _start, _end, patch_today=patch_today)
+        assert h is not None
 
         # http://chrisalbon.com/python/pandas_dropping_column_and_rows.html
         h = h[h["Volume"] != 0].copy()
