@@ -1,7 +1,9 @@
 import os
 from os.path import join
+from datetime import date
 
 from pandas import HDFStore, DataFrame, Series
+from numpy import datetime64
 
 from .utils import Singleton, env
 
@@ -15,11 +17,9 @@ class Cache:
         self.fn = join(cache_dir, "lmk.hd5")
         with HDFStore(self.fn) as cache:
             if TABLE_RANGE in cache:
-                self.range = cache.get(TABLE_RANGE)
+                self.range = cache.get(TABLE_RANGE).astype(date)
             else:
-                self.range = DataFrame({"start": Series([], dtype="datetime64[ns]"),
-                                        "end": Series([], dtype="datetime64[ns]")},)
-                cache.put(TABLE_RANGE, self.range)
+                self.range = DataFrame(columns=["start", "end"])
 
             if TABLE_NAME in cache:
                 self.name = cache.get(TABLE_NAME)
@@ -53,7 +53,7 @@ class Cache:
 
             with HDFStore(self.fn) as cache:
                 cache.put(table, history)
-                cache.put(TABLE_RANGE, self.range)
+                cache.put(TABLE_RANGE, self.range.astype(datetime64))
 
         else:
             _start, _end = self.range.loc[symbol]
@@ -70,7 +70,7 @@ class Cache:
                     self.range.loc[symbol] = start, _end
 
                     cache.put(table, h)
-                    cache.put(TABLE_RANGE, self.range)
+                    cache.put(TABLE_RANGE, self.range.astype(datetime64))
 
             # 3. no overlap, save the recent data.
             else:
@@ -79,7 +79,7 @@ class Cache:
 
                     with HDFStore(self.fn) as cache:
                         cache.put(table, history)
-                        cache.put(TABLE_RANGE, self.range)
+                        cache.put(TABLE_RANGE, self.range.astype(datetime64))
 
     def flush_name(self):
         with HDFStore(self.fn) as cache:

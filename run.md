@@ -34,7 +34,7 @@
 >>> end = env._today
 >>> #end = (env.today - timedelta(1)).strftime("%Y-%m-%d")
 ... #stk.retrieve_history("2016-02-01", end, freq="W-MON")
-... stk.retrieve_history("2016-02-01", end, freq="D")
+... stk.retrieve_history("2016-01-01", end, freq="D", patch_today=False)
 ...
 >>> #stk.visualize("V,C,HLC,BANDL,WM,PV,PVL,EE,ODR", ylimits=(140,300))
 ... stk.visualize("V,C,BAND,WM,PV,ODR,EE", ylimits=(140,300))
