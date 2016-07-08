@@ -17,12 +17,10 @@ class CacheTestCase(unittest.TestCase):
     def setUp(self):
         #env.logger.setLevel(logging.WARN)
         self.symbol = "TSLA"
-        self._start = "2015-02-01"
-        self.start = date(self._start)
-        self._end = "2016-02-01"
-        self.end = date(self._end)
+        self.start = "2015-02-01"
+        self.end = "2016-02-01"
 
-        self.h = DataReader(self.symbol, "yahoo", self._start, self._end)
+        self.h = DataReader(self.symbol, "yahoo", self.start, self.end)
 
     def test_cache(self):
         with TemporaryDirectory(prefix="lmk.") as tmpdir:
@@ -31,7 +29,7 @@ class CacheTestCase(unittest.TestCase):
             self.assertEqual(cache.range.dtypes.loc["start"], dtype('<M8[ns]'))
 
             # put
-            cache.put(self.symbol, self.start, self.end, self.h)
+            cache.put(self.symbol, date(self.start), date(self.end), self.h)
             self.assertEqual(cache.range.dtypes.loc["end"], dtype('<M8[ns]'))
 
             # get
