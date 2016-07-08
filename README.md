@@ -105,7 +105,7 @@ and github renders ```ipynb``` files, so here is what the above looks like.
 
 * ~~Chinese font (on Mac)~~
 
-```
+```python
 # remove font cache
 # rm -rf $(python -c "import matplotlib; print(matplotlib.get_cachedir())")
 
