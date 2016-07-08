@@ -2,6 +2,8 @@
 
 set -x
 
+# docker pull jupyter/datascience-notebook
+
 docker run \
     --interactive --tty --rm \
     -v $PWD:/home/jovyan/work \
