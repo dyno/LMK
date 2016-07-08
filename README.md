@@ -1,7 +1,7 @@
 ## LMK
 
-> *LMK* means "Livermore Market Key" which is defined in Jesse Livermore's book "HOW TO TRADE IN STOCKS: The Livermore Formula for Combining Time Element and Price".  <https://en.wikipedia.org/wiki/Jesse_Lauriston_Livermore>
-> <http://blog.dynofu.me/post/2014/07/26/jesse-livermore-market-method.html>
+> *LMK* means "Livermore Market Key" which is defined in [Jesse Livermore](https://en.wikipedia.org/wiki/Jesse_Lauriston_Livermore)'s book "HOW TO TRADE IN STOCKS: The Livermore Formula for Combining Time Element and Price".
+> If you happend to have read the book, it might also be interesting to read <http://blog.dynofu.me/post/2014/07/26/jesse-livermore-market-method.html>
 
 ## Does it still work?
 * <http://blessedfool.blogspot.com/2013/05/project-freedom-12-livermore-secret.html>
@@ -74,9 +74,9 @@ ticker.visualize("V,C,CL,LMK,WM,PV")
 
 * zipline ...
 
-* --the cache layer-- see Market.py/cache.py
+* ~~the cache layer~~ see Market.py/cache.py
 
-* --Chinese font (on Mac)--
+* ~~Chinese font (on Mac)~~
 
 ```
 # remove font cache
