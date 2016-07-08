@@ -68,8 +68,8 @@ class Cache:
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
                     h.loc[start:end] = history
-                    self.range.loc[symbol] = [Timestamp(start if _start > start else _start),
-                                              Timestamp(end if _end < end else _end)]
+                    self.range.loc[symbol] = [Timestamp(min(start, _start)),
+                                              Timestamp(max(end, _end))]
 
                     cache.put(table, h)
                     cache.put(TABLE_RANGE, self.range)
