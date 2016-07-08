@@ -11,16 +11,18 @@ from lmk.cache import Cache
 def date(s):
     return to_datetime(s).date()
 
+DS = "google"
+
 class CacheTestCase(unittest.TestCase):
     """Tests for `lmk.cache`."""
 
     def setUp(self):
         #env.logger.setLevel(logging.WARN)
         self.symbol = "TSLA"
-        self.start = "2015-02-01"
-        self.end = "2016-02-01"
+        self.start = "2015-04-01"
+        self.end = "2015-06-30"
 
-        self.h = DataReader(self.symbol, "yahoo", self.start, self.end)
+        self.h = DataReader(self.symbol, DS, self.start, self.end)
 
     def test_cache(self):
         with TemporaryDirectory(prefix="lmk.") as tmpdir:
@@ -28,28 +30,72 @@ class CacheTestCase(unittest.TestCase):
             self.assertTrue(list(cache.range.columns) == ["start", "end"])
             self.assertEqual(cache.range.dtypes.loc["start"], dtype('<M8[ns]'))
 
-            # put
+            def cache_range():
+                r = cache.range.loc[self.symbol]
+                return r["start"].date(), r["end"].date()
+
+            # initial put
             cache.put(self.symbol, date(self.start), date(self.end), self.h)
             self.assertEqual(cache.range.dtypes.loc["end"], dtype('<M8[ns]'))
+            self.assertEqual(cache_range(), (date(self.start), date(self.end)))
 
-            # get
+            # no data cached for the symbol.
+            start, end = "2015-01-01", "2015-01-31"
+            h = cache.get("NONEXIST", date(start), date(end))
+            self.assertTrue(h is None)
+
             # on the left, no overlap
-            h = cache.get(self.symbol, date("2015-01-01"), date("2015-01-31"))
+            start, end = "2015-01-01", "2015-01-31"
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is None)
-           # on the right, no overlap
-            h = cache.get(self.symbol, date("2016-03-01"), date("2015-03-31"))
+            self.assertEqual(cache_range(), (date(self.start), date(self.end)))
+
+            h1 = DataReader(self.symbol, DS, start, end)
+            cache.put(self.symbol, date(start), date(end), h1)
+            self.assertEqual(cache_range(), (date(self.start), date(self.end)))
+
+            h = cache.get(self.symbol, date(start), date(end))
+            self.assertTrue(h is None) # only the most recent range is saved.
+
+            # on the right, no overlap
+            start, end = "2016-01-01", "2016-05-31"
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is None)
+            h1 = DataReader(self.symbol, DS, start, end)
+            cache.put(self.symbol, date(start), date(end), h1)
+            self.assertEqual(cache_range(), (date(start), date(end)))
+            h = cache.get(self.symbol, date(start), date(end))
+            self.assertTrue(h is not None) # only the most recent range is saved.
+
             # overlap on the left
-            h = cache.get(self.symbol, date("2015-01-01"), date("2015-03-31"))
+            start, end = "2015-12-01", "2016-03-31"
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is None)
+            h1 = DataReader(self.symbol, DS, start, end)
+            cache.put(self.symbol, date(start), date(end), h1)
+            self.assertEqual(cache_range(), (date(start), date("2016-05-31")))
+            h = cache.get(self.symbol, date(start), date(end))
+            self.assertTrue(h is not None) # cache extended
+
             # overlap on the right
-            h = cache.get(self.symbol, date("2016-01-01"), date("2016-03-31"))
+            start, end = "2016-04-01", "2016-06-30"
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is None)
-            # hit
-            h = cache.get(self.symbol, date("2015-02-01"), date("2016-02-01"))
+            h1 = DataReader(self.symbol, DS, start, end)
+            cache.put(self.symbol, date(start), date(end), h1)
+            self.assertEqual(cache_range(), (date("2015-12-01"), date("2016-06-30")))
+            h = cache.get(self.symbol, date(start), date(end))
+            self.assertTrue(h is not None) # cache extended
+
+            # hit - part
+            start, end = "2016-01-01", "2016-05-31"
+            print(cache.range)
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is not None)
-            # hit
-            h = cache.get(self.symbol, date("2015-03-01"), date("2015-05-01"))
+
+            # hit - full
+            start, end = "2015-12-01", "2016-06-30"
+            h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is not None)
 
 

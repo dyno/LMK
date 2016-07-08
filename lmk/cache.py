@@ -3,6 +3,7 @@ from os.path import join
 from datetime import date
 
 from pandas import HDFStore, DataFrame, Series
+from pandas import concat
 from numpy import datetime64
 
 from .utils import Singleton, env
@@ -63,18 +64,26 @@ class Cache:
             if _start <= start <= end <= _end:
                 return
 
-            # 2. there is overlap
-            elif (_start > start and _end > end) or (_start < start and _end < end):
+            # 2. superset of current cache
+            elif (start <= _start <= _end <= end):
+                with HDFStore(self.fn) as cache:
+                    self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
+
+                    cache.put(table, history)
+                    cache.put(TABLE_RANGE, self.range)
+
+            # 3. there is overlap
+            elif (start < _start < end) or (start < _end < end):
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
-                    h.loc[start:end] = history
+                    h = concat([h, history]).drop_duplicates().sort_index()
                     self.range.loc[symbol] = Series({"start": min(start, _start),
                                                      "end": max(end, _end)}).astype(datetime64)
 
                     cache.put(table, h)
                     cache.put(TABLE_RANGE, self.range)
 
-            # 3. no overlap, save the recent data.
+            # 4. no overlap, save the recent data.
             else:
                 if _end < start: # new data is more recent.
                     self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
