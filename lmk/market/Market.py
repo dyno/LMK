@@ -82,7 +82,7 @@ class Market:
                 h = self.datasource.retrieve_history(symbol, _start, _end)
                 if self.today in h.index:
                     end = self.today
-                self.cache.put(symbol, h, start, end)
+                self.cache.put(symbol, start, end, h)
 
             if do_patch_today and self.today not in h.index:
                 r = self.datasource.get_quote_today(symbol)

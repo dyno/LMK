@@ -2,7 +2,7 @@ import os
 from os.path import join
 from datetime import date
 
-from pandas import HDFStore, DataFrame, Series, Timestamp
+from pandas import HDFStore, DataFrame, Series
 from numpy import datetime64
 
 from .utils import Singleton, env
@@ -19,8 +19,7 @@ class Cache:
             if TABLE_RANGE in cache:
                 self.range = cache.get(TABLE_RANGE)
             else:
-                self.range = DataFrame({"start": Series([], dtype="datetime64[ns]"),
-                                        "end": Series([], dtype="datetime64[ns]")})
+                self.range = DataFrame(columns=["start", "end"], dtype="datetime64[ns]")
 
             if TABLE_NAME in cache:
                 self.name = cache.get(TABLE_NAME)
@@ -37,7 +36,8 @@ class Cache:
 
         if symbol in self.range.index:
             # Timestamp -> date
-            _start, _end = [ts.date() for ts in self.range.loc[symbol]]
+            r = self.range.loc[symbol]
+            _start, _end = r["start"].date(), r["end"].date()
             # cache hit - part of existing data.
             if _start <= start <= end <= _end:
                 with HDFStore(self.fn) as cache:
@@ -46,11 +46,11 @@ class Cache:
 
                     return h
 
-    def put(self, symbol, history, start, end):
+    def put(self, symbol, start, end, history):
         table = self._table_name(symbol)
 
         if symbol not in self.range.index:
-            self.range.loc[symbol] = [Timestamp(start), Timestamp(end)]
+            self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
 
             with HDFStore(self.fn) as cache:
                 cache.put(table, history)
@@ -68,8 +68,8 @@ class Cache:
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
                     h.loc[start:end] = history
-                    self.range.loc[symbol] = [Timestamp(min(start, _start)),
-                                              Timestamp(max(end, _end))]
+                    self.range.loc[symbol] = Series({"start": min(start, _start),
+                                                     "end": max(end, _end)}).astype(datetime64)
 
                     cache.put(table, h)
                     cache.put(TABLE_RANGE, self.range)
@@ -77,7 +77,7 @@ class Cache:
             # 3. no overlap, save the recent data.
             else:
                 if _end < start: # new data is more recent.
-                    self.range.loc[symbol] = [Timestamp(start), Timestamp(end)]
+                    self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
 
                     with HDFStore(self.fn) as cache:
                         cache.put(table, history)
