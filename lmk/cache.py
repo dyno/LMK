@@ -2,7 +2,7 @@ import os
 from os.path import join
 from datetime import date
 
-from pandas import HDFStore, DataFrame, Series
+from pandas import HDFStore, DataFrame, Series, Timestamp
 from numpy import datetime64
 
 from .utils import Singleton, env
@@ -26,7 +26,6 @@ class Cache:
                 self.name = cache.get(TABLE_NAME)
             else:
                 self.name = Series([])
-                cache.put(TABLE_NAME, self.name)
 
     def _table_name(self, symbol):
         # HDF5 table name better to be a valid variable name.
@@ -51,7 +50,7 @@ class Cache:
         table = self._table_name(symbol)
 
         if symbol not in self.range.index:
-            self.range.loc[symbol] = Series([start, end]).astype(datetime64)
+            self.range.loc[symbol] = [Timestamp(start), Timestamp(end)]
 
             with HDFStore(self.fn) as cache:
                 cache.put(table, history)
@@ -69,16 +68,16 @@ class Cache:
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
                     h.loc[start:end] = history
-                    self.range.loc[symbol] = (start if _start > start else _start,
-                                              end if _end < end else _end)
+                    self.range.loc[symbol] = [Timestamp(start if _start > start else _start),
+                                              Timestamp(end if _end < end else _end)]
 
                     cache.put(table, h)
-                    cache.put(TABLE_RANGE, self.range.astype(datetime64))
+                    cache.put(TABLE_RANGE, self.range)
 
             # 3. no overlap, save the recent data.
             else:
                 if _end < start: # new data is more recent.
-                    self.range.loc[symbol] = Series([start, end]).astype(datetime64)
+                    self.range.loc[symbol] = [Timestamp(start), Timestamp(end)]
 
                     with HDFStore(self.fn) as cache:
                         cache.put(table, history)
