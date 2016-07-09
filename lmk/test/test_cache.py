@@ -89,7 +89,6 @@ class CacheTestCase(unittest.TestCase):
 
             # hit - part
             start, end = "2016-01-01", "2016-05-31"
-            print(cache.range)
             h = cache.get(self.symbol, date(start), date(end))
             self.assertTrue(h is not None)
 

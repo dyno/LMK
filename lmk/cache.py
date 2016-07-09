@@ -76,7 +76,8 @@ class Cache:
             elif (start < _start < end) or (start < _end < end):
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
-                    h = concat([h, history]).drop_duplicates().sort_index()
+                    h = h.combine_first(history)
+                    #h = concat([h, history]).drop_duplicates().sort_index()
                     self.range.loc[symbol] = Series({"start": min(start, _start),
                                                      "end": max(end, _end)}).astype(datetime64)
 
