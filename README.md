@@ -10,30 +10,18 @@
 
 ## Get Started with the code
 
-* Suppose you already have **docker** installed.
-```bash
-# in the same directory where this README.md resides.
-scripts/run_docker.sh
-```
-in the jupyter ipython notebook page (e.g. ```http://<>:8888```) create a new **Python 3** notebook with ...
 
-- Cell 1 - install dependencies.
-
-```
-%%bash
-conda install pandas_datareader pytables
-```
-
-- Cell 2 - configure matplotlib
+- Cell 1 - configure matplotlib
 
 ```python
 %matplotlib inline
 
 import matplotlib
 matplotlib.rcParams['figure.figsize'] = (19, 8)
+matplotlib.rcParams['font.family'] = 'Hei'
 ```
 
-- Cell 3 - run it...
+- Cell 2 - run it...
 
 ```python
 from lmk.ticker import Ticker
@@ -81,7 +69,7 @@ and github renders ```ipynb``` files, so here is what the above looks like.
 │   ├── ticker.py
 │   └── utils.py
 ├── run.md
-├── run_test.sh
+├── Makefile
 └── scripts
     ├── launchd_wrapper.sh
     ├── org.jupyter.server.plist
@@ -103,18 +91,3 @@ and github renders ```ipynb``` files, so here is what the above looks like.
 
 * ~~the cache layer~~ see Market.py/cache.py
 
-* ~~Chinese font (on Mac)~~
-
-```python
-# remove font cache
-# rm -rf $(python -c "import matplotlib; print(matplotlib.get_cachedir())")
-
-# list all available fonts.
-from matplotlib.font_manager import FontManager
-m = FontManager()
-{f.name:f.fname for f in m.ttflist}
-
-# pick a font.
-matplotlib.rcParams['font.family'] = ['sans-serif']
-matplotlib.rcParams['font.sans-serif'] = ['STHeiti']
-```

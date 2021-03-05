@@ -206,8 +206,8 @@ class Ticker:
                 ymax = close_min + height * 1.02
             ax0.set_ylim(ymin, ymax)
 
-        ax0.set_axis_bgcolor('white')
-        ax1.set_axis_bgcolor('white')
+        ax0.set_facecolor('white')
+        ax1.set_facecolor('white')
 
         # --------------------------------------------------------------
 

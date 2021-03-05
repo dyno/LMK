@@ -1,0 +1,10 @@
+.cache/
+.ipynb_checkpoints/
+.venv/
+__pycache__/
+zold/
+
+x.*
+y.*
+z.*
+*.swp

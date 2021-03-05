@@ -1,0 +1,43 @@
+[tool.poetry]
+name = "lmk"
+version = "2021.03.04"
+description = "LMK - Livemore Market Method"
+authors = ["Dyno Fu <dyno.fu@gmail.com>"]
+
+[tool.poetry.dependencies]
+attrs = "*"
+cattrs = "*"
+ipython = "*"
+jupyter = "*"
+jupyterlab = "*"
+jupytext = "*"
+matplotlib = "*"
+pandas = "*"
+pandas-datareader = "*"
+python = "~3.8"
+tables = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.cache
+  | \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ropeproject
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
