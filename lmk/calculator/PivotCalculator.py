@@ -6,6 +6,7 @@ Pivot points is the top/bottom that the price has ever reached.
 from collections import deque, namedtuple
 from operator import gt
 
+
 class PivotCalculator(object):
     def __init__(self, window_size=5, cmp=gt):
         self.window_size = window_size
@@ -14,8 +15,8 @@ class PivotCalculator(object):
         # exit_check: whether it should be considered as a local extrim
         # when it get removed from the qeue
         self.QE = namedtuple("QueueEelment", ["val", "idx", "exit_check"])
-        self._q = deque()   # queue to hold the local extrim candidates
-        self._idx = 0       # index of the current value to be processed.
+        self._q = deque()  # queue to hold the local extrim candidates
+        self._idx = 0  # index of the current value to be processed.
 
         self._result = []
         self._post_process_done = False
@@ -44,7 +45,7 @@ class PivotCalculator(object):
                 is_extrim = True
 
         # DEBUG:
-        #print(self._idx, "{:.2f}".format(v), self._q[0] if self._q else [],
+        # print(self._idx, "{:.2f}".format(v), self._q[0] if self._q else [],
         #      ["{:.2f}".format(e[0]) for e in self._q],
         #      self._idx - self.window_size, result)
 
@@ -70,4 +71,3 @@ class PivotCalculator(object):
             self._post()
 
         return self._result
-

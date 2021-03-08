@@ -4,9 +4,9 @@ from ..utils import Singleton
 from .DataSource import DataSource
 from .Yahoo import Yahoo
 
+
 @Singleton
 class Google(DataSource):
-
     def retrieve_history(self, symbol, _start, _end):
         hist = DataReader(symbol, "google", _start, _end)
         hist["Adj Close"] = hist["Close"]
@@ -18,4 +18,3 @@ class Google(DataSource):
 
     def get_quote_today(self, symbol):
         return Yahoo().get_quote_today(symbol)
-

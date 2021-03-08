@@ -12,7 +12,7 @@ def to_dt(dt_str):
     try:
         return datetime.strptime(dt_str, "%Y-%m-%d")
     except:
-        return to_datetime(dt_str) # XXX: too slow...
+        return to_datetime(dt_str)  # XXX: too slow...
 
 
 # http://python-3-patterns-idioms-test.readthedocs.io/en/latest/Singleton.html
@@ -36,9 +36,9 @@ class Environment(object):
         self.__init_log(loglevel=logging.DEBUG)
 
     def __init_log(self, loglevel=logging.DEBUG):
-#        logging.basicConfig(level=loglevel,
-#            format="%(asctime)s|%(levelname)5s|%(filename)s:%(lineno)s#%(funcName)s()#%(message)s")
-#        stdoutStreamHandler = logging.StreamHandler(stream=sys.stdout)
+        #        logging.basicConfig(level=loglevel,
+        #            format="%(asctime)s|%(levelname)5s|%(filename)s:%(lineno)s#%(funcName)s()#%(message)s")
+        #        stdoutStreamHandler = logging.StreamHandler(stream=sys.stdout)
 
         self.logger = logging.getLogger("lmk")
         self.logger.setLevel(loglevel)
@@ -70,4 +70,3 @@ class Environment(object):
 
 ## global ##
 env = Environment()
-

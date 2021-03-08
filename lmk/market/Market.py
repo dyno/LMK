@@ -9,13 +9,15 @@ from ..utils import env
 from ..cache import Cache
 
 
-TradeHour = namedtuple('TradeHour', ['open', 'close'])
+TradeHour = namedtuple("TradeHour", ["open", "close"])
 TradeTime = namedtuple("TradeTime", ["hour", "minute"])
+
 
 class Market:
     HISTORY_COLUMNS = ["Open", "High", "Low", "Close", "Volume", "Adj Close"]
 
     tz = None
+
     def __init__(self):
         self._now = None
         self.cache = Cache()
@@ -59,8 +61,7 @@ class Market:
     def open(self):
         hour, minute = self.now.hour, self.now.minute
 
-        return self._trading_day() and \
-            self.trading_hour.open <= (hour, minute) <= self.trading_hour.close
+        return self._trading_day() and self.trading_hour.open <= (hour, minute) <= self.trading_hour.close
 
     @property
     def closed(self):
@@ -99,7 +100,7 @@ class Market:
             h["_Close"] = h["Adj Close"]
 
             del h["Open"], h["High"], h["Low"], h["Close"], h["Adj Close"]
-            h.rename(columns=lambda c: c.replace('_', ''), inplace=True)
+            h.rename(columns=lambda c: c.replace("_", ""), inplace=True)
 
             return h
 
@@ -115,4 +116,3 @@ class Market:
 
     def set_datasource(self, ds):
         self.datasource = self.datasources[ds]
-

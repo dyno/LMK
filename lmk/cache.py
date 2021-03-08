@@ -11,10 +11,11 @@ from .utils import Singleton, env
 TABLE_RANGE = "_cache_range"
 TABLE_NAME = "_symbol_name"
 
+
 @Singleton
 class Cache:
     def __init__(self, cache_dir=".cache"):
-        os.makedirs(cache_dir, exist_ok=True) # mkdir -p ...
+        os.makedirs(cache_dir, exist_ok=True)  # mkdir -p ...
         self.fn = join(cache_dir, "lmk.hd5")
         with HDFStore(self.fn) as cache:
             if TABLE_RANGE in cache:
@@ -65,7 +66,7 @@ class Cache:
                 return
 
             # 2. superset of current cache
-            elif (start <= _start <= _end <= end):
+            elif start <= _start <= _end <= end:
                 with HDFStore(self.fn) as cache:
                     self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
 
@@ -77,16 +78,17 @@ class Cache:
                 with HDFStore(self.fn) as cache:
                     h = cache.get(table)
                     h = h.combine_first(history)
-                    #h = concat([h, history]).drop_duplicates().sort_index()
-                    self.range.loc[symbol] = Series({"start": min(start, _start),
-                                                     "end": max(end, _end)}).astype(datetime64)
+                    # h = concat([h, history]).drop_duplicates().sort_index()
+                    self.range.loc[symbol] = Series({"start": min(start, _start), "end": max(end, _end)}).astype(
+                        datetime64
+                    )
 
                     cache.put(table, h)
                     cache.put(TABLE_RANGE, self.range)
 
             # 4. no overlap, save the recent data.
             else:
-                if _end < start: # new data is more recent.
+                if _end < start:  # new data is more recent.
                     self.range.loc[symbol] = Series({"start": start, "end": end}).astype(datetime64)
 
                     with HDFStore(self.fn) as cache:
@@ -96,4 +98,3 @@ class Cache:
     def flush_name(self):
         with HDFStore(self.fn) as cache:
             cache.put(TABLE_NAME, self.name)
-

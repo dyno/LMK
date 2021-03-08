@@ -16,6 +16,8 @@ pandas = "*"
 pandas-datareader = "*"
 python = "~3.8"
 tables = "*"
+tushare = "*"
+yfinance = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "*"

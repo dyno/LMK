@@ -7,11 +7,12 @@ from lmk.utils import env
 from lmk.market.China import China
 from lmk.market.US import US
 
+
 class MarketTestCase(unittest.TestCase):
     """Tests for `lmk.market.*`."""
 
     def setUp(self):
-        #env.logger.setLevel(logging.WARN)
+        # env.logger.setLevel(logging.WARN)
         pass
 
     def test_Market_China(self):
@@ -21,7 +22,7 @@ class MarketTestCase(unittest.TestCase):
         self.assertTrue(m.open)
         self.assertFalse(m.closed)
 
-        m.now = "2016-06-09 12:00" # 端午节
+        m.now = "2016-06-09 12:00"  # 端午节
         self.assertFalse(m.open)
         self.assertTrue(m.closed)
 
@@ -32,11 +33,10 @@ class MarketTestCase(unittest.TestCase):
         self.assertTrue(m.open)
         self.assertFalse(m.closed)
 
-        m.now = "2016-05-30 12:00" # Memorial Day
+        m.now = "2016-05-30 12:00"  # Memorial Day
         self.assertFalse(m.open)
         self.assertTrue(m.closed)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
-

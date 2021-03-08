@@ -7,4 +7,3 @@ class DataSource(object):
 
     def get_quote_today(self, symbol):
         raise NotImplementedError()
-

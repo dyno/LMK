@@ -4,8 +4,9 @@ Entry/Buy: price > btm + atr/2
 Exit/Sell: price < top - atr/2
 """
 
-BUY=1
-SELL=2
+BUY = 1
+SELL = 2
+
 
 class EntryPointCalculator(object):
     def __init__(self, trade_type=BUY, atr_factor=1.0):
@@ -24,7 +25,7 @@ class EntryPointCalculator(object):
                 self.pivot = tick["Close"]
                 self.wait_for_trade = True
 
-            if self.pivot and self.wait_for_trade and tick["Close"] >= self.pivot + atr/2.0:
+            if self.pivot and self.wait_for_trade and tick["Close"] >= self.pivot + atr / 2.0:
                 self.wait_for_trade = False
                 trade = True
 
@@ -33,9 +34,8 @@ class EntryPointCalculator(object):
                 self.pivot = tick["Close"]
                 self.wait_for_trade = True
 
-            if self.pivot and self.wait_for_trade and tick["Close"] <= self.pivot - atr/2.0:
+            if self.pivot and self.wait_for_trade and tick["Close"] <= self.pivot - atr / 2.0:
                 self.wait_for_trade = False
                 trade = True
 
         return trade
-

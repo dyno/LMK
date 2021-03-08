@@ -4,6 +4,7 @@ from operator import gt, lt
 
 # XXX: workaround matplotlib problem running in pyenv.
 import matplotlib
+
 matplotlib.use("Agg")
 
 from lmk.utils import env
@@ -12,16 +13,16 @@ from lmk.calculator.PivotCalculator import PivotCalculator
 from lmk.calculator.ATRCalculator import ATRCalculator
 from lmk.calculator.ODRCalculator import ODRCalculator
 from lmk.calculator.EntryPointCalculator import EntryPointCalculator, BUY, SELL
-from lmk.calculator.LMKBandCalculator import (LMKBandCalculatorHeuristic,
-    TREND_UP, TREND_DN, BAND_UPWARD, BAND_DNWARD)
+from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic, TREND_UP, TREND_DN, BAND_UPWARD, BAND_DNWARD
 
 # XXX: http://stackoverflow.com/questions/4095319/unittest-tests-order
+
 
 class CalculatorTestCase(unittest.TestCase):
     """Tests for `lmk.calculator.*`."""
 
     def setUp(self):
-        #env.logger.setLevel(logging.WARN)
+        # env.logger.setLevel(logging.WARN)
         self.ticker = Ticker("TSLA")
         self.ticker.retrieve_history("2015-01-01", "2016-05-31")
 
@@ -107,5 +108,6 @@ class CalculatorTestCase(unittest.TestCase):
         self.assertEqual("{:.2f}".format(h["WM"]["2015-05-15"]), "248.84")
         self.assertEqual(h["Band"]["2015-05-29"], BAND_UPWARD)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

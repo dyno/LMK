@@ -2,6 +2,7 @@ import unittest
 
 from lmk.utils import Singleton, Environment, env
 
+
 class UtilsTestCase(unittest.TestCase):
     """Tests for `utils.py`."""
 
@@ -10,7 +11,7 @@ class UtilsTestCase(unittest.TestCase):
 
         @Singleton
         class X:
-          pass
+            pass
 
         x = X()
         y = X()
@@ -23,5 +24,5 @@ class UtilsTestCase(unittest.TestCase):
         self.assertTrue(id(env) == id(env_new))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

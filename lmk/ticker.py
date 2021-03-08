@@ -11,9 +11,9 @@ from collections import namedtuple
 #%matplotlib inline
 
 # http://matplotlib.org/users/customizing.html
-#import matplotlib
-#matplotlib.rcParams['figure.figsize'] = (19, 6)
-#matplotlib.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei']
+# import matplotlib
+# matplotlib.rcParams['figure.figsize'] = (19, 6)
+# matplotlib.rcParams['font.sans-serif'] = ['WenQuanYi Micro Hei']
 
 from matplotlib import pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -22,12 +22,14 @@ from matplotlib.dates import MonthLocator, WeekdayLocator, DateFormatter, MONDAY
 
 # http://stackoverflow.com/questions/11707586/python-pandas-widen-output-display
 import pandas
-#pandas.set_option('display.max_columns', 500)
-#pandas.set_option('display.width', 200)
+
+# pandas.set_option('display.max_columns', 500)
+# pandas.set_option('display.width', 200)
 
 import warnings
 from pandas.core.common import SettingWithCopyWarning
-warnings.simplefilter('error',SettingWithCopyWarning)
+
+warnings.simplefilter("error", SettingWithCopyWarning)
 
 from numpy import ma, nan
 from dateutil.relativedelta import relativedelta, MO, TH
@@ -41,9 +43,17 @@ from lmk.calculator.PivotCalculator import PivotCalculator
 from lmk.calculator.LMKBandCalculator import LMKBandCalculatorHeuristic
 from lmk.calculator.LMKBandCalculator import LMKBandCalculatorPivot
 from lmk.calculator.LMKBandCalculator import (
-    BAND_UPWARD, BAND_NAT_RALLY, BAND_SEC_RALLY,
-    BAND_SEC_REACT, BAND_NAT_REACT, BAND_DNWARD, BAND_UNKNOWN,
-    TREND_UP, TREND_DN, TREND_UNKNOWN)
+    BAND_UPWARD,
+    BAND_NAT_RALLY,
+    BAND_SEC_RALLY,
+    BAND_SEC_REACT,
+    BAND_NAT_REACT,
+    BAND_DNWARD,
+    BAND_UNKNOWN,
+    TREND_UP,
+    TREND_DN,
+    TREND_UNKNOWN,
+)
 
 from lmk.utils import env
 
@@ -51,7 +61,8 @@ from lmk.utils import env
 # ------------------------------------------------------------------------------
 def ensure_columns_exist(h, columns):
     columns = list(set(columns) - set(h.columns))
-    if not columns: return h
+    if not columns:
+        return h
 
     # XXX: make it configurable
     pivot_window_size = 5
@@ -86,9 +97,9 @@ def ensure_columns_exist(h, columns):
 
     if "WM" in columns or "Trend" in columns or "Band" in columns:
         # ** LMK ** => Livermore Market Key
-#            c = LMKBandCalculatorPivot(atr_factor=atr_factor)
-#            df = h.apply(c, axis=1)
-#            h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
+        #            c = LMKBandCalculatorPivot(atr_factor=atr_factor)
+        #            df = h.apply(c, axis=1)
+        #            h["Trend"], h["WM"], h["Band"] = df["Trend"], df["WM"], df["Band"]
 
         ensure_columns_exist(h, ["Top", "Btm"])
         start_pivot = h[h["Top"] | h["Btm"]].iloc[0]
@@ -101,7 +112,6 @@ def ensure_columns_exist(h, columns):
 
 # ------------------------------------------------------------------------------
 class Ticker:
-
     def __init__(self, symbol, ds=None):
         self.symbol = symbol
         if symbol[-3:] in (".SS", ".SZ"):
@@ -180,16 +190,16 @@ class Ticker:
         # --------------------------------------------------------------
         # ---- Background and Limits ----
 
-        ax0 = plt.subplot2grid((5,1), (0, 0), rowspan=4)
+        ax0 = plt.subplot2grid((5, 1), (0, 0), rowspan=4)
         ax0.set_xmargin(0.02)
-        #http://stackoverflow.com/questions/3305865/what-is-the-difference-between-log-and-symlog
-        #ax0.set_yscale("symlog", linthreshy=30)
-        ax1 = plt.subplot2grid((5,1), (4, 0), rowspan=1, sharex=ax0)
+        # http://stackoverflow.com/questions/3305865/what-is-the-difference-between-log-and-symlog
+        # ax0.set_yscale("symlog", linthreshy=30)
+        ax1 = plt.subplot2grid((5, 1), (4, 0), rowspan=1, sharex=ax0)
         ax1.yaxis.set_visible(False)
-        #ax1.set_yscale("symlog", linthreshy=1000)
+        # ax1.set_yscale("symlog", linthreshy=1000)
 
         self.figure = plt.gcf()
-        #self.figure.clear()
+        # self.figure.clear()
         self.figure.suptitle("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)))
         self.figure.subplots_adjust(hspace=0)
 
@@ -198,23 +208,22 @@ class Ticker:
         else:
             close_min = min(h["Close"])
             close_max = max(h["Close"])
-            height = close_min * .5
-            ymin =  close_min * 0.98
+            height = close_min * 0.5
+            ymin = close_min * 0.98
             ymax = close_min + (height * 1.02)
             if ymax < close_max:
                 height = close_max - close_min
                 ymax = close_min + height * 1.02
             ax0.set_ylim(ymin, ymax)
 
-        ax0.set_facecolor('white')
-        ax1.set_facecolor('white')
+        ax0.set_facecolor("white")
+        ax1.set_facecolor("white")
 
         # --------------------------------------------------------------
 
         # http://stackoverflow.com/questions/1166118/how-to-strip-decorators-from-a-function-in-python
         def plot_elements(*names):
             def decorated(f):
-
                 @functools.wraps(f)
                 def wrapper(*argv, **kargs):
                     return f(*argv, **kargs)
@@ -226,7 +235,6 @@ class Ticker:
 
         def columns(*names):
             def decorated(f):
-
                 @functools.wraps(f)
                 def wrapper(*argv, **kargs):
                     h = argv[1]
@@ -238,23 +246,33 @@ class Ticker:
 
             return decorated
 
-
         # -- Basic Volume/Price --
         @plot_elements("V")
         @columns("CC", "Volume")
         def plot_V(ax, h):
             up = h[h["CC"] >= 0]
-            ax.bar(up.index, up["Volume"], width=1, color="black", edgecolor="black", linewidth=1, alpha=.3, align="center")
+            ax.bar(
+                up.index,
+                up["Volume"],
+                width=1,
+                color="black",
+                edgecolor="black",
+                linewidth=1,
+                alpha=0.3,
+                align="center",
+            )
             dn = h[h["CC"] < 0]
-            ax.bar(dn.index, dn["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=.3, align="center")
+            ax.bar(
+                dn.index, dn["Volume"], width=1, color="red", edgecolor="red", linewidth=1, alpha=0.3, align="center"
+            )
 
         @plot_elements("C")
         @columns("Close", "CC")
         def plot_C(ax, h):
             up = h[h["CC"] >= 0]
-            ax.plot(up.index, up["Close"], "_", color="black", alpha=.5, markeredgewidth=2)
+            ax.plot(up.index, up["Close"], "_", color="black", alpha=0.5, markeredgewidth=2)
             dn = h[h["CC"] < 0]
-            ax0.plot(dn.index, dn["Close"], "_", color="red", alpha=.5, markeredgewidth=2)
+            ax0.plot(dn.index, dn["Close"], "_", color="red", alpha=0.5, markeredgewidth=2)
 
         @plot_elements("CL")
         @columns("Close")
@@ -288,18 +306,18 @@ class Ticker:
             pivots = h[h["Top"] | h["Btm"]]
             for x, tick in pivots.iterrows():
                 label = "%.2f" % tick["Close"]
-                if tick["Top"]: # crest
+                if tick["Top"]:  # crest
                     y = tick["High"]
-                    ax.text(x, y, label, color="g", alpha=.8)
-                else:           # trough
+                    ax.text(x, y, label, color="g", alpha=0.8)
+                else:  # trough
                     y = tick["Low"]
-                    ax.text(x, y, label, color="r", alpha=.8)
+                    ax.text(x, y, label, color="r", alpha=0.8)
 
         @plot_elements("PVL")
         @columns("Top", "Btm", "Close")
         def plot_PVL(ax, h):
             pivots = h[h["Top"] | h["Btm"]]
-            ax.plot(pivots.index, pivots["Close"], "-", color="blue", alpha=.3)
+            ax.plot(pivots.index, pivots["Close"], "-", color="blue", alpha=0.3)
             r = h[h["Top"]]
             ax.plot(r.index, r["Close"], "g^", alpha=1.0)
             r = h[h["Btm"]]
@@ -307,19 +325,19 @@ class Ticker:
 
         # -- LMK --
         BAND_STYLE_MAP = {
-            BAND_DNWARD     : "rv",
-            BAND_NAT_REACT  : "m<",
-            BAND_SEC_REACT  : "m*",
-            BAND_SEC_RALLY  : "c*",
-            BAND_NAT_RALLY  : "c>",
-            BAND_UPWARD     : "g^",
+            BAND_DNWARD: "rv",
+            BAND_NAT_REACT: "m<",
+            BAND_SEC_REACT: "m*",
+            BAND_SEC_RALLY: "c*",
+            BAND_NAT_RALLY: "c>",
+            BAND_UPWARD: "g^",
         }
 
         @plot_elements("BAND", "LMK")
         @columns("Close", "WM", "Band")
         def plot_BAND(ax, h):
-             for band in range(BAND_DNWARD, BAND_UPWARD + 1):
-                #if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
+            for band in range(BAND_DNWARD, BAND_UPWARD + 1):
+                # if band in (BAND_SEC_REACT, BAND_SEC_RALLY): continue
                 r = h[(h["WM"] == h["Close"]) & (h["Band"] == band)]
                 ax0.plot(r.index, r["Close"], BAND_STYLE_MAP[band], alpha=1.0)
 
@@ -337,19 +355,19 @@ class Ticker:
         @plot_elements("WM")
         @columns("Trend", "WM", "ATR")
         def plot_WM(ax, h):
-            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"])
+            chosen = ma.masked_where(~(h["Trend"] == TREND_UP), h["WM"])
             ax.plot(h.index, chosen, drawstyle="steps-post", color="g", linewidth=1.5)
-            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"] - h["ATR"] * 2.0)
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="r", alpha=.5)
-            chosen = ma.masked_where(~(h['Trend'] == TREND_UP), h["WM"] - h["ATR"])
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=.2)
+            chosen = ma.masked_where(~(h["Trend"] == TREND_UP), h["WM"] - h["ATR"] * 2.0)
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="r", alpha=0.5)
+            chosen = ma.masked_where(~(h["Trend"] == TREND_UP), h["WM"] - h["ATR"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=0.2)
 
-            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"])
+            chosen = ma.masked_where(~(h["Trend"] == TREND_DN), h["WM"])
             ax.plot(h.index, chosen, drawstyle="steps-post", color="r", linewidth=1.5)
-            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"] + h["ATR"] * 2.0)
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="g", alpha=.5)
-            chosen = ma.masked_where(~(h['Trend'] == TREND_DN), h["WM"] + h["ATR"])
-            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=.2)
+            chosen = ma.masked_where(~(h["Trend"] == TREND_DN), h["WM"] + h["ATR"] * 2.0)
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="g", alpha=0.5)
+            chosen = ma.masked_where(~(h["Trend"] == TREND_DN), h["WM"] + h["ATR"])
+            ax.plot(h.index, chosen, drawstyle="steps-post", color="b", alpha=0.2)
 
         @plot_elements("EE", "BS")
         @columns("Buy", "Sell", "Close")
@@ -358,7 +376,6 @@ class Ticker:
             ax0.plot(r.index, r["Close"], "g+", markersize=8, markeredgewidth=3, alpha=1)
             r = h[h["Sell"]]
             ax0.plot(r.index, r["Close"], "r_", markersize=8, markeredgewidth=3, alpha=1)
-
 
         # Build the plotting function map ...
         plot_functions = [f for f in locals().values() if callable(f) and hasattr(f, "elements")]
@@ -380,19 +397,21 @@ class Ticker:
         # ---- Axis and Grid ----
 
         days = WeekdayLocator(MONDAY)
-        #days = WeekdayLocator(FRIDAY)
+        # days = WeekdayLocator(FRIDAY)
 
-        #dayFmt = DateFormatter("%d")
+        # dayFmt = DateFormatter("%d")
         def _dayFmt(x, pos):
             dt = num2date(x)
             return dt.strftime("%d")[-1] if dt.day < 10 else dt.strftime("%d")
+
         dayFmt = FuncFormatter(_dayFmt)
 
-        months  = MonthLocator(range(1, 13), bymonthday=1, interval=1)
+        months = MonthLocator(range(1, 13), bymonthday=1, interval=1)
         # http://stackoverflow.com/questions/11623498/date-formatting-with-matplotlib
         def _monthFmt(x, pos):
             dt = num2date(x)
-            return dt.strftime('\n%Y') if dt.month == 1 else dt.strftime("\n%b")
+            return dt.strftime("\n%Y") if dt.month == 1 else dt.strftime("\n%b")
+
         monthFmt = FuncFormatter(_monthFmt)
 
         for ax in (ax0, ax1):
@@ -403,16 +422,15 @@ class Ticker:
                 ax.xaxis.set_minor_locator(days)
                 ax.xaxis.set_minor_formatter(dayFmt)
 
-        ax0.xaxis.grid(True, which='major', color="blue", linestyle="-", alpha=1)
-        ax0.xaxis.grid(True, which='minor', color="gray", linestyle="-", alpha=.5)
+        ax0.xaxis.grid(True, which="major", color="blue", linestyle="-", alpha=1)
+        ax0.xaxis.grid(True, which="minor", color="gray", linestyle="-", alpha=0.5)
         ax0.tick_params(labelbottom="off", which="both")
         ax0.yaxis.grid(True)
 
-        ax1.xaxis.grid(True, which='major', color="blue", linestyle="-", alpha=1)
-        ax1.xaxis.grid(True, which='minor', color="gray", linestyle="-", alpha=.3)
+        ax1.xaxis.grid(True, which="major", color="blue", linestyle="-", alpha=1)
+        ax1.xaxis.grid(True, which="minor", color="gray", linestyle="-", alpha=0.3)
 
         # http://stackoverflow.com/questions/12750355/python-matplotlib-figure-title-overlaps-axes-label-when-using-twiny
-        #ax0.set_title("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)), y=0.9)
+        # ax0.set_title("%s%s" % (self.symbol, "" if self.symbol == self.name else ("(%s)" % self.name)), y=0.9)
 
         plt.show()
-
